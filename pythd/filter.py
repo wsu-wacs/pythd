@@ -49,4 +49,4 @@ class ComponentFilter(BaseFilter):
         self.comp = comp
     
     def get_values(self, arg):
-        return arg[self.comp]
+        return arg[:, self.comp]
