@@ -68,6 +68,13 @@ class IntervalCover1D(BaseCover):
     def EvenlySpaced(cls, num_intervals, minv, maxv, overlap):
         bins = _1DBins.EvenlySpaced(num_intervals, minv, maxv, overlap)
         return cls(bins)
+    
+    @classmethod
+    def EvenlySpacedFromValues(cls, f_x, num_intervals, overlap):
+        minv = f_x.min()
+        maxv = f_x.max()
+        bins = _1DBins.EvenlySpaced(num_intervals, minv, maxv, overlap)
+        return cls(bins)
 
     def get_open_set_membership(self, value):
         return self.bins.get_bins_value_is_in(value)
