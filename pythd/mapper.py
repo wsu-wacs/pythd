@@ -11,6 +11,29 @@ Rewritten and modified by Kyle Brown <brown.718@wright.edu>
 import itertools
 import numpy as np
 
+class MAPPERResult:
+    """
+        Represents the result of a MAPPER - the set of nodes with memberships.
+        
+        This is the 0-skeleton of the complex.
+    """
+    def __init__(self, nodes):
+        self.nodes = nodes
+
+    def compute_1_skeleton(self):
+        """
+        Compute the 1-skeleton of the MAPPER.
+        
+        This will compute the 1-skeleton of the MAPPER and return the nodes and edges.
+        """
+        edges = []
+        for n1, n2 in itertools.combinations(self.nodes.keys(), 2):
+            common = self.nodes[n1].intersection(self.nodes[n2])
+            if len(common) > 0:
+                edges.append((n1, n2))
+        
+        return (self.nodes, edges)
+
 class MAPPER:
     def __init__(self, filter=None, cover=None, clustering=None):
         self.set_filter(filter)
@@ -29,17 +52,23 @@ class MAPPER:
         self.clustering = clustering
         return self
     
-    def compute_1_skeleton(self, points):
+    def run(self, points):
         """
-            Compute the MAPPER structure as a topological network
+        Run MAPPER on the given data
+        
+        Parameters
+        ----------
+        points : numpy.ndarray
+            The dataset in the shape (num_points, num_features). The columns should
+            have the same dimension as the input to the filter function.
         """
-        f_x = self.filter(points) # filter values
+        f_x = self.filter(points)
         d = self.cover.get_open_set_membership_dict(f_x)
         
         nodes = {}
         num_nodes = 0
         
-        for set_id, members in d.items():
+        for open_set_id, members in d.items():
             memb_np = np.array(members)
             if len(members) == 1:
                 clusters = [[0]] # Just the one point 
@@ -50,11 +79,5 @@ class MAPPER:
                 nid = num_nodes
                 num_nodes += 1
                 nodes[nid] = set(memb_np[cluster])
-
-        edges = []
-        for n1, n2 in itertools.combinations(nodes.keys(), 2):
-            common = nodes[n1].intersection(nodes[n2])
-            if len(common) > 0:
-                edges.append((n1, n2))
         
-        return (nodes, edges)
+        return MAPPERResult(nodes)
