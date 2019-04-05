@@ -46,7 +46,7 @@ class _1DBins:
         
         bins = []
         for i in range(num_intervals):
-            c = minv + i*rhat
+            c = minv + i*rhat + rhat*0.5
             b = (max(c - eps, minv), min(c + eps, maxv))
             bins.append(b)
         

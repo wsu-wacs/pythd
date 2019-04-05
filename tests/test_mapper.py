@@ -18,4 +18,5 @@ class TestMAPPER(unittest.TestCase):
     
     def test_mapper(self):
         mapper = MAPPER(filter=self.filter, cover=self.cover, clustering=self.clustering)
-        mapper.compute_1_skeleton(self.x)
+        mapper_result = mapper.run(self.x)
+        one_skeleton = mapper_result.compute_1_skeleton()
