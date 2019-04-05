@@ -78,3 +78,31 @@ class IntervalCover1D(BaseCover):
 
     def get_open_set_membership(self, value):
         return self.bins.get_bins_value_is_in(value)
+
+class IntervalCover(BaseCover):
+    """Hypercube cover in k-dimensions.
+    
+    This is a cover consisting of generalized intervals, 
+    which are the cartesian product of k intervals of the
+    form [a,b].
+    """
+    def __init__(self):
+        pass
+        
+    @classmethod
+    def EvenlySpaced(cls, num_intervals, minvs, maxvs, overlaps):
+        self.dim = len(minvs)
+        
+        if isinstance(num_intervals, int):
+            num_intervals = [num_intervals for i in range(self.dim)]
+        if isinstance(overlap, (int, float)):
+            overlaps = [overlaps for i in range(self.dim)]
+        
+        self.bbins = []
+        for i in range(self.dim):
+            bins = _1DBins.EvenlySpaced(num_intervals[i], minvs[i],
+                                        maxvs[i], overlaps[i])
+            self.bbins.append(bins)
+    
+    def get_open_set_membership(self, value):
+        pass
