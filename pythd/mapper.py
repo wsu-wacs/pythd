@@ -19,6 +19,14 @@ def create_igraph_network(nodes, edges):
     g.add_edges(edges)
     return g
 
+def create_networkx_network(nodes, edges):
+    import networkx as nx
+    g = nx.Graph()
+    for vid, points in nodes.items():
+        g.add_node(vid, name=str(vid), points=points)
+    g.add_edges_from(edges)
+    return g
+
 class MAPPERResult:
     """
         Represents the result of a MAPPER - the set of nodes with memberships.
@@ -56,6 +64,15 @@ class MAPPERResult:
         """
         nodes, edges = self.compute_1_skeleton()
         return create_igraph_network(nodes, edges)
+    
+    def get_networkx_network(self):
+        """
+        Get the 1-skeleton of the MAPPER as a networkx network.
+        
+        This requires the networkx package to be installed.
+        """
+        nodes, edges = self.compute_1_skeleton()
+        return create_networkx_network(nodes, edges)
 
 class MAPPER:
     def __init__(self, filter=None, cover=None, clustering=None):
