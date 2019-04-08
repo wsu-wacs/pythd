@@ -9,9 +9,13 @@ Original code by Xiu Huan Yap <yap.4@wright.edu>
 Rewritten and modified by Kyle Brown <brown.718@wright.edu>
 """
 import itertools
+import functools
 import numpy as np
 
 def create_igraph_network(nodes, edges):
+    """
+    Convert a 1-skeleton to an igraph network.
+    """
     import igraph
     g = igraph.Graph()
     for vid, points in nodes.items():
@@ -20,6 +24,9 @@ def create_igraph_network(nodes, edges):
     return g
 
 def create_networkx_network(nodes, edges):
+    """
+    Convert a 1-skeleton to a networkx network.
+    """
     import networkx as nx
     g = nx.Graph()
     for vid, points in nodes.items():
@@ -55,6 +62,50 @@ class MAPPERResult:
                 edges.append((n1, n2))
         
         return (self.nodes, edges)
+    
+    def compute_k_skeleton(self, k=1):
+        """
+        Compute the k-skeleton of the MAPPER
+        
+        Parameters
+        ----------
+        k : int
+            The maximum size of simplices to compute. Should be non-negative.
+        
+        Returns
+        -------
+        tuple
+            A tuple where the first element is 0-simplices, the next one 1-simplices,
+            and so on up to k-simplices.
+        """
+        if k < 0:
+            raise ValueError(f"Invalid value of k for k-skeleton: {k}")
+        if k == 0:
+            return self.compute_0_skeleton()
+        elif k == 1:
+            return self.compute_1_skeleton()
+        
+        km1_skel = self.compute_k_skeleton(k-1)
+        km1_simps = km1_skel[-1]
+        
+        k_simps = []
+        
+        # It takes k+1 (k-1)-simplices to make up a k-simplex.
+        # Consider all possible combinations of these and check their intersections.
+        for subsets in itertools.combinations(km1_skel[-1], k+1):
+            # First we check if this is even a candidate k-simplex
+            sets = [set(s) for s in subsets]
+            simplex = functools.reduce(lambda a,b: a|b, [set(s) for s in subsets])
+            if len(simplex) == (k+1):
+                # This could be a k-simplex, now check for overlap in clusters
+                clusters = [self.nodes[n] for n in simplex]
+                common = functools.reduce(lambda a,b: a&b, clusters)
+                if len(common) > 0:
+                    k_simps.append(tuple(simplex))
+        
+        return km1_skel + (k_simps,)
+            
+            
     
     def get_igraph_network(self):
         """
