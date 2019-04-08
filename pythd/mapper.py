@@ -1,10 +1,6 @@
 """
 Pure Python implementation of MAPPER
 
-TODO:
-* Separate computation of intermediate structure (clustering, etc.)
-  from computation of k-skeleton
-
 Original code by Xiu Huan Yap <yap.4@wright.edu>
 Rewritten and modified by Kyle Brown <brown.718@wright.edu>
 """
