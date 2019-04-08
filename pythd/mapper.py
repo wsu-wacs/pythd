@@ -11,6 +11,14 @@ Rewritten and modified by Kyle Brown <brown.718@wright.edu>
 import itertools
 import numpy as np
 
+def create_igraph_network(nodes, edges):
+    import igraph
+    g = igraph.Graph()
+    for vid, points in nodes.items():
+        g.add_vertex(name=str(vid), points=points)
+    g.add_edges(edges)
+    return g
+
 class MAPPERResult:
     """
         Represents the result of a MAPPER - the set of nodes with memberships.
@@ -19,6 +27,12 @@ class MAPPERResult:
     """
     def __init__(self, nodes):
         self.nodes = nodes
+    
+    def compute_0_skeleton(self):
+        """
+        Get the 0-skeleton of the MAPPER.
+        """
+        return self.nodes
 
     def compute_1_skeleton(self):
         """
@@ -33,6 +47,15 @@ class MAPPERResult:
                 edges.append((n1, n2))
         
         return (self.nodes, edges)
+    
+    def get_igraph_network(self):
+        """
+        Get the 1-skeleton of the MAPPER as an igraph network.
+        
+        This requires the igraph package to be installed.
+        """
+        nodes, edges = self.compute_1_skeleton()
+        return create_igraph_network(nodes, edges)
 
 class MAPPER:
     def __init__(self, filter=None, cover=None, clustering=None):
