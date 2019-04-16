@@ -5,12 +5,13 @@ By Kyle Brown <brown.718@wright.edu>
 """
 import numpy as np
 from matplotlib import pyplot as plt
+from matplotlib import cm
 import matplotlib.patches as patches
 import matplotlib.lines as lines
 
 def _draw_node(ax, x, y, radius=0.1, color="#FF0000"):
     """Draw a single node in a MAPPER complex"""
-    circ = patches.Circle((x, y), radius=radius, color=color)
+    circ = patches.Circle((x, y), radius=radius, facecolor=color, edgecolor="black")
     ax.add_patch(circ)
 
 def _draw_edge(ax, from_xy, to_xy):
@@ -23,7 +24,7 @@ def _draw_face(ax, coords):
     patch = patches.Polygon(coords, closed=True, alpha=0.5, color="blue")
     ax.add_patch(patch)
 
-def _draw_nodes(ax, complex, layout):
+def _draw_nodes(ax, complex, layout, coloring="density"):
     """Draw all the nodes in a MAPPER complex"""
     nodes = complex[0]
 
@@ -31,6 +32,14 @@ def _draw_nodes(ax, complex, layout):
     max_x = 1e-20
     min_y = 1e20
     max_y = 1e-20
+    
+    colors = {n: "red" for n in nodes.keys()}
+    if coloring == "density":
+        node_counts = {n: len(pts) for n, pts in nodes.items()}
+        min_n = min(node_counts.values())
+        max_n = max(node_counts.values())
+        cmap = cm.get_cmap("jet", 64)
+        colors = {n: cmap(float(node_counts[n] - min_n) / (max_n - min_n)) for n in node_counts.keys()}
 
     for n, pts in nodes.items():
         x, y = (layout[n][0], -layout[n][1])
@@ -38,7 +47,7 @@ def _draw_nodes(ax, complex, layout):
         max_x = max(x, max_x)
         min_y = min(y, min_y)
         max_y = max(y, max_y)
-        _draw_node(ax, x, y)
+        _draw_node(ax, x, y, color=colors[n])
     
     return (min_x, max_x, min_y, max_y)
 
@@ -82,7 +91,7 @@ def draw_topological_network(complex, layout):
     ax.set_ylim(min_y-0.1, max_y+0.1)
     ax.set_aspect(1.0)
 
-def draw_2_skeleton(complex, layout):
+def draw_2_skeleton(complex, layout, node_coloring="density"):
     """Draw the 2-skeleton of a MAPPER output
     
     Parameters
@@ -100,8 +109,8 @@ def draw_2_skeleton(complex, layout):
     
     _draw_faces(ax, complex, layout)
     _draw_edges(ax, complex, layout)
-    min_x, max_x, min_y, max_y = _draw_nodes(ax, complex, layout)
+    min_x, max_x, min_y, max_y = _draw_nodes(ax, complex, layout, coloring=node_coloring)
     
-    ax.set_xlim(min_x-0.1, max_x+0.1)
-    ax.set_ylim(min_y-0.1, max_y+0.1)
+    ax.set_xlim(min_x-0.2, max_x+0.2)
+    ax.set_ylim(min_y-0.2, max_y+0.2)
     ax.set_aspect(1.0)

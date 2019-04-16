@@ -1,45 +1,58 @@
-**Edit a file, create a new file, and clone from Bitbucket in under 2 minutes**
+This repository contains a pure Python implementation of MAPPER. In the future,
+it will also implement topological hierarchical decompositions (THDs) on top of
+the MAPPER implementation. It is developed with support for Python 3, and may
+not run on Python 2.7 or earlier.
 
-When you're done, you can delete the content in this README and update the file with details for others getting started with your repository.
+# Required Packages
 
-*We recommend that you open this README in another tab as you perform the tasks below. You can [watch our video](https://youtu.be/0ocf7u76WSo) for a full demo of all the steps in this tutorial. Open the video in a new tab to avoid leaving Bitbucket.*
+The following Python packages are required to use pythd:
+- numpy
+- scipy
+- matplotlib
+The following packages are needed for graph export functionality:
+- igraph
+- networkx
 
----
+# Basic Example
 
-## Edit a file
+The following example will create a test dataset, and run MAPPER on it:
+```python
+import pythd
+from matplotlib import pyplot as plt
 
-You’ll start by editing this README file to learn how to edit a file in Bitbucket.
+# Two intersecting circles with some noise
+dataset = (pythd.datagen.DatasetGenerator()
+                .circle(center=[-4.0, 0.0], radius=4.0, noise=0.06, num_points=200)
+                .circle(center=[4.0, 0.0], radius=4.0, noise=0.06, num_points=200)).get()
 
-1. Click **Source** on the left side.
-2. Click the README.md link from the list of files.
-3. Click the **Edit** button.
-4. Delete the following text: *Delete this line to make a change to the README from Bitbucket.*
-5. After making your change, click **Commit** and then **Commit** again in the dialog. The commit page will open and you’ll see the change you just made.
-6. Go back to the **Source** page.
+# Setup MAPPER
+filt = pythd.filter.ComponentFilter(0) # filter: x component
+f_x = filt(dataset) # filter values
+cover = pythd.cover.IntervalCover1D.EvenlySpacedFromValues(f_x, 10, 0.5)
+clustering = pythd.clustering.HierarchicalClustering() # scipy hierarchical clustering
+mapper = pythd.mapper.MAPPER(filter=filt, cover=cover, clustering=clustering)
+res = mapper.run(dataset) # run clustering step of MAPPER
+```
 
----
+To visualize the graph, there are three methods. The first uses igraph:
+```python
+import igraph
+g = res.get_igraph_network()
+layout = g.layout_kamada_kawai() # graph layout from igraph
+igraph.plot(g, layout=layout)
+```
 
-## Create a file
+The second uses networkx:
+```python
+import networkx as nx
+g = res.get_networkx_network()
+nx.draw(g)
+```
 
-Next, you’ll add a new file to this repository.
-
-1. Click the **New file** button at the top of the **Source** page.
-2. Give the file a filename of **contributors.txt**.
-3. Enter your name in the empty file space.
-4. Click **Commit** and then **Commit** again in the dialog.
-5. Go back to the **Source** page.
-
-Before you move on, go ahead and explore the repository. You've already seen the **Source** page, but check out the **Commits**, **Branches**, and **Settings** pages.
-
----
-
-## Clone a repository
-
-Use these steps to clone from SourceTree, our client for using the repository command-line free. Cloning allows you to work on your files locally. If you don't yet have SourceTree, [download and install first](https://www.sourcetreeapp.com/). If you prefer to clone from the command line, see [Clone a repository](https://confluence.atlassian.com/x/4whODQ).
-
-1. You’ll see the clone button under the **Source** heading. Click that button.
-2. Now click **Check out in SourceTree**. You may need to create a SourceTree account or log in.
-3. When you see the **Clone New** dialog in SourceTree, update the destination path and name if you’d like to and then click **Clone**.
-4. Open the directory you just created to see your repository’s files.
-
-Now that you're more familiar with your Bitbucket repository, go ahead and add a new file locally. You can [push your change back to Bitbucket with SourceTree](https://confluence.atlassian.com/x/iqyBMg), or you can [add, commit,](https://confluence.atlassian.com/x/8QhODQ) and [push from the command line](https://confluence.atlassian.com/x/NQ0zDQ).
+The third is the recommended approach; there is support for drawing 2-simplices (faces) as well
+as the nodes and edges, and support for node density coloring. You'll need to provide the layout,
+however, either computed with igraph or generated on your own:
+```python
+# re-using the layout computed from igraph above
+pythd.plotting.draw_2_skeleton(res.compute_k_skeleton(k=2), layout)
+```
