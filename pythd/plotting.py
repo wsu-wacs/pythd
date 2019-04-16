@@ -9,6 +9,8 @@ from matplotlib import cm
 import matplotlib.patches as patches
 import matplotlib.lines as lines
 
+from . import coloring as _coloring
+
 def _draw_node(ax, x, y, radius=0.1, color="#FF0000"):
     """Draw a single node in a MAPPER complex"""
     circ = patches.Circle((x, y), radius=radius, facecolor=color, edgecolor="black", zorder=1.0)
@@ -35,16 +37,11 @@ def _draw_nodes(ax, complex, layout, coloring="density"):
     
     colors = {n: "red" for n in nodes.keys()}
     if coloring == "density":
-        node_counts = {n: len(pts) for n, pts in nodes.items()}
-        min_n = min(node_counts.values())
-        max_n = max(node_counts.values())
-        if max_n == min_n:
-            div = 1.0 / max_n
-            min_n = 0.0
-        else:
-            div = 1.0 / (max_n - min_n)
-        cmap = cm.get_cmap("jet", 64)
-        colors = {n: cmap(float(node_counts[n] - min_n) * div) for n in node_counts.keys()}
+        colors = _coloring.create_node_density_coloring(complex)
+    elif isinstance(coloring, dict):
+        colors = coloring
+    else:
+        raise TypeError(f"Unknown coloring type: {type(coloring)}")
 
     for n, pts in nodes.items():
         x, y = (layout[n][0], -layout[n][1])
