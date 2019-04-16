@@ -17,11 +17,13 @@ class BaseFilter(ABC):
 class ScikitLearnFilter(BaseFilter):
     """Filter functions used in scikit-learn
     """
-    def __init__(self, cls):
+    def __init__(self, cls, *args, **kwargs):
         self.cls = cls
+        self.args = args
+        self.kwargs = kwargs
     
     def get_values(self, arg):
-        filt = self.cls()
+        filt = self.cls(*self.args, **self.kwargs)
         return filt.fit_transform(arg)
 
 class CustomFilter(BaseFilter):

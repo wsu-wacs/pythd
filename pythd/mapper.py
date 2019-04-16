@@ -139,7 +139,7 @@ class MAPPER:
         self.clustering = clustering
         return self
     
-    def run(self, points):
+    def run(self, points, f_x=None):
         """
         Run MAPPER on the given data
         
@@ -149,7 +149,8 @@ class MAPPER:
             The dataset in the shape (num_points, num_features). The columns should
             have the same dimension as the input to the filter function.
         """
-        f_x = self.filter(points)
+        if f_x is None:
+            f_x = self.filter(points)
         d = self.cover.get_open_set_membership_dict(f_x)
         
         nodes = {}

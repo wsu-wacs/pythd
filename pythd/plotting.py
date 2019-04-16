@@ -38,8 +38,13 @@ def _draw_nodes(ax, complex, layout, coloring="density"):
         node_counts = {n: len(pts) for n, pts in nodes.items()}
         min_n = min(node_counts.values())
         max_n = max(node_counts.values())
+        if max_n == min_n:
+            div = 1.0 / max_n
+            min_n = 0.0
+        else:
+            div = 1.0 / (max_n - min_n)
         cmap = cm.get_cmap("jet", 64)
-        colors = {n: cmap(float(node_counts[n] - min_n) / (max_n - min_n)) for n in node_counts.keys()}
+        colors = {n: cmap(float(node_counts[n] - min_n) * div) for n in node_counts.keys()}
 
     for n, pts in nodes.items():
         x, y = (layout[n][0], -layout[n][1])
@@ -68,7 +73,7 @@ def _draw_faces(ax, complex, layout):
         coords = np.array([[layout[n][0], -layout[n][1]] for n in face])
         _draw_face(ax, coords)
 
-def draw_topological_network(complex, layout):
+def draw_topological_network(complex, layout, node_coloring="density"):
     """Draw the 1-skeleton of a MAPPER output
 
     Parameters
@@ -85,10 +90,10 @@ def draw_topological_network(complex, layout):
     ax.set_axis_off()
 
     _draw_edges(ax, complex, layout)
-    min_x, max_x, min_y, max_y = _draw_nodes(ax, complex, layout)
+    min_x, max_x, min_y, max_y = _draw_nodes(ax, complex, layout, coloring=node_coloring)
     
-    ax.set_xlim(min_x-0.1, max_x+0.1)
-    ax.set_ylim(min_y-0.1, max_y+0.1)
+    ax.set_xlim(min_x-0.2, max_x+0.2)
+    ax.set_ylim(min_y-0.2, max_y+0.2)
     ax.set_aspect(1.0)
 
 def draw_2_skeleton(complex, layout, node_coloring="density"):

@@ -38,3 +38,12 @@ class DatasetGenerator:
         y = center[1] + radius*np.sin(theta) + np.random.normal(scale=noise, size=theta.shape)
         self._add_data(np.array([x, y]).T)
         return self
+    
+    def line(self, start=[0.0, 0.0], end=[1.0, 0.0], num_points=10, noise=0.0):
+        t = np.linspace(0.0, 1.0, num=num_points, endpoint=True)
+        
+        x = start[0] + (end[0] - start[0])*t + np.random.normal(scale=noise, size=t.shape)
+        y = start[1] + (end[1] - start[1])*t + np.random.normal(scale=noise, size=t.shape)
+        self._add_data(np.array([x, y]).T)
+        return self
+        

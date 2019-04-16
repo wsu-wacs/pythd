@@ -114,4 +114,18 @@ class IntervalCover(BaseCover):
         return cls.EvenlySpaced(num_intervals, minvs, maxvs, overlaps)
         
     def get_open_set_membership(self, value):
+        """Get the open sets a point falls in.
+        
+        Parameters
+        ----------
+        value : numpy.ndarray
+            The point (filter value)
+        
+        Returns
+        -------
+        list
+            A list of hashable indices of the open sets this point falls in.
+            For this cover, the indices will be tuples of integers giving the
+            indices of intervals in each dimension.
+        """
         return list(itertools.product(*[self.bbins[i].get_bins_value_is_in(v) for i, v in enumerate(value)]))
