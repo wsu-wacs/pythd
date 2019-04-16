@@ -9,6 +9,7 @@ The following Python packages are required to use pythd:
 - numpy
 - scipy
 - matplotlib
+
 The following packages are needed for graph export functionality:
 - igraph
 - networkx

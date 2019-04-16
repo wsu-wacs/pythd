@@ -5,6 +5,7 @@ Original code by Xiu Huan Yap <yap.4@wright.edu>
 Rewritten and modified by Kyle Brown <brown.718@wright.edu>
 """
 from abc import ABC, abstractmethod
+import itertools
 
 class BaseCover(ABC):
     @abstractmethod
@@ -86,23 +87,31 @@ class IntervalCover(BaseCover):
     which are the cartesian product of k intervals of the
     form [a,b].
     """
-    def __init__(self):
-        pass
+    def __init__(self, bbins):
+        self.bbins = bbins
         
     @classmethod
     def EvenlySpaced(cls, num_intervals, minvs, maxvs, overlaps):
-        self.dim = len(minvs)
+        dim = len(minvs)
         
         if isinstance(num_intervals, int):
-            num_intervals = [num_intervals for i in range(self.dim)]
-        if isinstance(overlap, (int, float)):
-            overlaps = [overlaps for i in range(self.dim)]
+            num_intervals = [num_intervals for i in range(dim)]
+        if isinstance(overlaps, (int, float)):
+            overlaps = [overlaps for i in range(dim)]
         
-        self.bbins = []
-        for i in range(self.dim):
+        bbins = []
+        for i in range(dim):
             bins = _1DBins.EvenlySpaced(num_intervals[i], minvs[i],
                                         maxvs[i], overlaps[i])
-            self.bbins.append(bins)
+            bbins.append(bins)
+        
+        return cls(bbins)
     
+    @classmethod
+    def EvenlySpacedFromValues(cls, f_x, num_intervals, overlaps):
+        minvs = f_x.min(axis=0)
+        maxvs = f_x.max(axis=0)
+        return cls.EvenlySpaced(num_intervals, minvs, maxvs, overlaps)
+        
     def get_open_set_membership(self, value):
-        pass
+        return list(itertools.product(*[self.bbins[i].get_bins_value_is_in(v) for i, v in enumerate(value)]))
