@@ -11,17 +11,17 @@ import matplotlib.lines as lines
 
 def _draw_node(ax, x, y, radius=0.1, color="#FF0000"):
     """Draw a single node in a MAPPER complex"""
-    circ = patches.Circle((x, y), radius=radius, facecolor=color, edgecolor="black")
+    circ = patches.Circle((x, y), radius=radius, facecolor=color, edgecolor="black", zorder=1.0)
     ax.add_patch(circ)
 
-def _draw_edge(ax, from_xy, to_xy):
+def _draw_edge(ax, from_xy, to_xy, color="#000000"):
     """Draw a single edge in a MAPPER complex"""
-    patch = patches.ConnectionPatch(from_xy, to_xy, "data")
-    ax.add_patch(patch)
+    line = lines.Line2D([from_xy[0], to_xy[0]], [from_xy[1], to_xy[1]], linewidth=1.0, color=color, zorder=0.0)
+    ax.add_line(line)
 
 def _draw_face(ax, coords):
     """Draw a single face (2-simplex) in a MAPPER complex"""
-    patch = patches.Polygon(coords, closed=True, alpha=0.5, color="blue")
+    patch = patches.Polygon(coords, closed=True, alpha=0.5, color="blue", zorder=-1.0)
     ax.add_patch(patch)
 
 def _draw_nodes(ax, complex, layout, coloring="density"):
