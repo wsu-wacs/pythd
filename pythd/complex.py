@@ -57,6 +57,7 @@ class SimplicialComplex(object):
     """A simplicial complex, stored as a simplex tree."""
     def __init__(self, simplices=None):
         self.simplex_tree = SimplicialTreeNode(-1, None, None, order=-1)
+        self.max_order = -1
         self.cousins = {}
     
     def _add_simplex_base(self, seq, data=None, **kwargs):
@@ -71,12 +72,11 @@ class SimplicialComplex(object):
                 child_node = SimplicialTreeNode(i, node, None)
                 node.add_child(child_node)
                 
-                if depth > 0:
-                    cousin_idx = (depth, i)
-                    if cousin_idx not in self.cousins:
-                        self.cousins[cousin_idx] = [child_node]
-                    else:
-                        self.cousins[cousin_idx].append(child_node)
+                cousin_idx = (depth, i)
+                if cousin_idx not in self.cousins:
+                    self.cousins[cousin_idx] = [child_node]
+                else:
+                    self.cousins[cousin_idx].append(child_node)
 
             node = child_node
             depth += 1
@@ -124,6 +124,7 @@ class SimplicialComplex(object):
         """
         simplex = sorted(simplex)
         k = len(simplex)
+        self.max_order = max(self.max_order, k)
         # add all 0-simplex faces, then 1-simplex faces, and so on up to k
         for i in range(1, k):
             for seq in itertools.combinations(simplex, i):
@@ -171,3 +172,37 @@ class SimplicialComplex(object):
                 raise KeyError(f"Simplex {simplex} not in the complex")
             node = node.children[i]
         return node
+    
+    def _get_node_children_simplices(self, node, simplex=()):
+        s = [simplex]
+        for n in node.get_children().values():
+            s = s + self._get_node_children_simplices(n, simplex + (n.id,))
+        return s
+    
+    def get_cofaces(self, simplex):
+        """Get the cofaces of a simplex
+        
+        TODO: get this working
+        
+        Parameters
+        ----------
+        simplex : iterable
+    
+        Returns
+        -------
+        list
+        """
+        simplex = sorted(simplex)
+        id = simplex[-1]
+        depth = len(simplex)-1
+        cofaces = []
+        
+        for i in range(depth, self.max_order + 1):
+            idx = (i,id)
+            if idx in self.cousins:
+                for n in self.cousins[idx]:
+                    n_simplex = n.get_simplex()
+                    
+                    if frozenset(simplex) <= frozenset(n_simplex):
+                        cofaces = cofaces + self._get_node_children_simplices(n, n_simplex)
+        return cofaces

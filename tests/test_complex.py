@@ -38,3 +38,13 @@ class TestSimplicialComplex(unittest.TestCase):
             if node.parent is not None:
                 self.assertEqual(node.get_order(), 
                                  node.parent.get_order()+1)
+    
+    def test_cofaces(self):
+        cofaces = frozenset(self.complex.get_cofaces((1,3)))
+        self.assertEqual(cofaces, frozenset([(1,3),(1,2,3)]))
+        
+        cofaces = frozenset(self.complex.get_cofaces((1,2)))
+        self.assertEqual(cofaces, frozenset([(1,2),(1,2,3)]))
+        
+        cofaces = frozenset(self.complex.get_cofaces((3,)))
+        self.assertEqual(cofaces, frozenset([(3,),(1,3),(2,3),(1,2,3)]))
