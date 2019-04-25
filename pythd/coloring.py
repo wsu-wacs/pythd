@@ -27,16 +27,15 @@ def create_node_coloring(values, complex):
     cmap = cm.get_cmap("jet", 64)
     
     colors = {}
-    for n, pts in complex[0].items():
-        avg_val = values[list(pts)].mean()
-        colors[n] = cmap((avg_val - minv) * div)
+    for n, data, dict in complex.get_k_simplices(k=0, include_data=True):
+        avg_val = values[list(dict["points"])].mean()
+        colors[n[0]] = cmap((avg_val - minv) * div)
     return colors
 
-def create_node_density_coloring(complex):
+def create_node_density_coloring(nodes):
     """Create a node density based coloring from a simplicial complex.
     """
-    nodes = complex[0]
-    node_counts = {n: len(pts) for n, pts in nodes.items()}
+    node_counts = {n[0]: len(dict["points"]) for n, data, dict in nodes}
     min_n = min(node_counts.values())
     max_n = max(node_counts.values())
     if max_n == min_n:

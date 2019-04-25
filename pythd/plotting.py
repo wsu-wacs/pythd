@@ -26,46 +26,42 @@ def _draw_face(ax, coords):
     patch = patches.Polygon(coords, closed=True, alpha=0.5, color="blue", zorder=-1.0)
     ax.add_patch(patch)
 
-def _draw_nodes(ax, complex, layout, coloring="density"):
+def _draw_nodes(ax, nodes, layout, coloring="density"):
     """Draw all the nodes in a MAPPER complex"""
-    nodes = complex[0]
-
     min_x = 1e20
     max_x = 1e-20
     min_y = 1e20
     max_y = 1e-20
     
-    colors = {n: "red" for n in nodes.keys()}
+    colors = {n[0][0]: "red" for n in nodes}
     if coloring == "density":
-        colors = _coloring.create_node_density_coloring(complex)
+        colors = _coloring.create_node_density_coloring(nodes)
     elif isinstance(coloring, dict):
         colors = coloring
     else:
         raise TypeError(f"Unknown coloring type: {type(coloring)}")
 
-    for n, pts in nodes.items():
-        x, y = (layout[n][0], -layout[n][1])
+    for n, _, __ in nodes:
+        id = n[0]
+        x, y = (layout[id][0], -layout[id][1])
         min_x = min(x, min_x)
         max_x = max(x, max_x)
         min_y = min(y, min_y)
         max_y = max(y, max_y)
-        _draw_node(ax, x, y, color=colors[n])
+        _draw_node(ax, x, y, color=colors[id])
     
     return (min_x, max_x, min_y, max_y)
 
-def _draw_edges(ax, complex, layout):
+def _draw_edges(ax, edges, layout):
     """Draw all the edges in a MAPPER complex"""
-    edges = complex[1]
 
     for a,b in edges:
         from_xy = (layout[a][0], -layout[a][1])
         to_xy = (layout[b][0], -layout[b][1])
         _draw_edge(ax, from_xy, to_xy)
 
-def _draw_faces(ax, complex, layout):
+def _draw_faces(ax, faces, layout):
     """Draw all the faces (2-simplices) in a MAPPER complex"""
-    faces = complex[2]
-    
     for face in faces:
         coords = np.array([[layout[n][0], -layout[n][1]] for n in face])
         _draw_face(ax, coords)
@@ -86,8 +82,11 @@ def draw_topological_network(complex, layout, node_coloring="density"):
     fig.set_size_inches((10,10))
     ax.set_axis_off()
 
-    _draw_edges(ax, complex, layout)
-    min_x, max_x, min_y, max_y = _draw_nodes(ax, complex, layout, coloring=node_coloring)
+    nodes = complex.get_k_simplices(k=0, include_data=True)
+    edges = complex.get_k_simplices(k=1)
+
+    _draw_edges(ax, edges, layout)
+    min_x, max_x, min_y, max_y = _draw_nodes(ax, nodes, layout, coloring=node_coloring)
     
     ax.set_xlim(min_x-0.2, max_x+0.2)
     ax.set_ylim(min_y-0.2, max_y+0.2)
@@ -109,9 +108,13 @@ def draw_2_skeleton(complex, layout, node_coloring="density"):
     fig.set_size_inches((10,10))
     ax.set_axis_off()
     
-    _draw_faces(ax, complex, layout)
-    _draw_edges(ax, complex, layout)
-    min_x, max_x, min_y, max_y = _draw_nodes(ax, complex, layout, coloring=node_coloring)
+    nodes = complex.get_k_simplices(k=0, include_data=True)
+    edges = complex.get_k_simplices(k=1)
+    faces = complex.get_k_simplices(k=2)
+    
+    _draw_faces(ax, faces, layout)
+    _draw_edges(ax, edges, layout)
+    min_x, max_x, min_y, max_y = _draw_nodes(ax, nodes, layout, coloring=node_coloring)
     
     ax.set_xlim(min_x-0.2, max_x+0.2)
     ax.set_ylim(min_y-0.2, max_y+0.2)

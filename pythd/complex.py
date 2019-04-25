@@ -59,7 +59,7 @@ class SimplicialComplex(object):
         self.simplex_tree = SimplicialTreeNode(-1, None, None, order=-1)
         self.cousins = {}
     
-    def _add_simplex_base(self, seq, data=None):
+    def _add_simplex_base(self, seq, data=None, **kwargs):
         """Single step to insert a single simplex into the tree"""
         id = seq[-1]
         node = self.simplex_tree
@@ -82,13 +82,14 @@ class SimplicialComplex(object):
             depth += 1
         if data is not None: # prevent overwriting data with None
             node.data = data
+        node.dict.update(kwargs)
     
     def _get_k_simplices_base(self, node, k=0, include_data=False):
         """Recursive helper function for get_k_simplices()"""
         k_simplices = []
         if node.get_order() == k: # base case: we're at the right depth
             if include_data:
-                k_simplices.append((node.get_simplex(), node.get_data()))
+                k_simplices.append((node.get_simplex(), node.get_data(), node.dict))
             else:
                 k_simplices.append(node.get_simplex())
         else: # otherwise travel down the tree
@@ -108,7 +109,7 @@ class SimplicialComplex(object):
             Whether to include the optional data associated to each simplex"""
         return self._get_k_simplices_base(self.simplex_tree, k=k, include_data=include_data)
         
-    def add_simplex(self, simplex, data=None):
+    def add_simplex(self, simplex, data=None, **kwargs):
         """Add a single simplex to the simplex tree.
         
         This method will insert a single simplex and all of its
@@ -127,7 +128,7 @@ class SimplicialComplex(object):
         for i in range(1, k):
             for seq in itertools.combinations(simplex, i):
                 self._add_simplex_base(seq, data=None)
-        self._add_simplex_base(simplex, data=data)
+        self._add_simplex_base(simplex, data=data, **kwargs)
     
     def is_simplex(self, simplex):
         """Check if a simplex is in this complex.
@@ -152,6 +153,17 @@ class SimplicialComplex(object):
         return True
 
     def get_node(self, simplex):
+        """Get a SimplicialTreeNode from the complex.
+        
+        Parameters
+        ----------
+        simplex : iterable
+           
+        Returns
+        -------
+        SimplicialTreeNode
+            
+        """
         simplex = sorted(simplex)
         node = self.simplex_tree
         for i in simplex:

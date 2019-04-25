@@ -21,18 +21,20 @@ class TestMAPPER(unittest.TestCase):
         mapper = MAPPER(filter=self.filter, cover=self.cover, clustering=self.clustering)
         mapper_result = mapper.run(self.x)
         one_skeleton = mapper_result.compute_1_skeleton()
+        nodes = one_skeleton.get_k_simplices(k=0, include_data=True)
+        edges = one_skeleton.get_k_simplices(k=1)
         
-        self.assertEqual(len(one_skeleton), 2)
         
         # All data points should be present in the nodes
-        points = [v for v in one_skeleton[0].values()]
+        points = [v[2]["points"] for v in nodes]
         points = functools.reduce(lambda a,b: a|b, points)
         self.assertEqual(self.x.shape[0], len(points))
         
         # Edges should be between existing nodes
-        for a,b in one_skeleton[-1]:
-            self.assertIn(a, one_skeleton[0])
-            self.assertIn(b, one_skeleton[0])
+        node_ids = [v[0][0] for v in nodes]
+        for a,b in edges:
+            self.assertIn(a, node_ids)
+            self.assertIn(b, node_ids)
     
     @unittest.expectedFailure
     def test_mapper_bad_skeleton(self):

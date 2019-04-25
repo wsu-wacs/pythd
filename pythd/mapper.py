@@ -8,14 +8,16 @@ import itertools
 import functools
 import numpy as np
 
+from .complex import SimplicialComplex
+
 def create_igraph_network(nodes, edges):
     """
     Convert a 1-skeleton to an igraph network.
     """
     import igraph
     g = igraph.Graph()
-    for vid, points in nodes.items():
-        g.add_vertex(name=str(vid), points=points)
+    for vid, data, dict in nodes:
+        g.add_vertex(name=str(vid[0]), data=data, **dict)
     g.add_edges(edges)
     return g
 
@@ -25,8 +27,8 @@ def create_networkx_network(nodes, edges):
     """
     import networkx as nx
     g = nx.Graph()
-    for vid, points in nodes.items():
-        g.add_node(vid, name=str(vid), points=points)
+    for vid, data, dict in nodes:
+        g.add_node(vid[0], name=str(vid[0]), data=data, **dict)
     g.add_edges_from(edges)
     return g
 
@@ -38,12 +40,15 @@ class MAPPERResult:
     """
     def __init__(self, nodes):
         self.nodes = nodes
+        self.complex = SimplicialComplex()
+        for k, v in self.nodes.items():
+            self.complex.add_simplex((k,), points=v)
     
     def compute_0_skeleton(self):
         """
         Get the 0-skeleton of the MAPPER.
         """
-        return self.nodes
+        return self.complex
 
     def compute_1_skeleton(self):
         """
@@ -51,13 +56,12 @@ class MAPPERResult:
         
         This will compute the 1-skeleton of the MAPPER and return the nodes and edges.
         """
-        edges = []
-        for n1, n2 in itertools.combinations(self.nodes.keys(), 2):
+        for n1, n2 in itertools.combinations(sorted(self.nodes.keys()), 2):
             common = self.nodes[n1].intersection(self.nodes[n2])
             if len(common) > 0:
-                edges.append((n1, n2))
+                self.complex.add_simplex((n1,n2))
         
-        return (self.nodes, edges)
+        return self.complex
     
     def compute_k_skeleton(self, k=1):
         """
@@ -81,14 +85,12 @@ class MAPPERResult:
         elif k == 1:
             return self.compute_1_skeleton()
         
-        km1_skel = self.compute_k_skeleton(k-1)
-        km1_simps = km1_skel[-1]
-        
-        k_simps = []
+        self.compute_k_skeleton(k-1)
+        km1_simps = self.complex.get_k_simplices(k=k-1)
         
         # It takes k+1 (k-1)-simplices to make up a k-simplex.
         # Consider all possible combinations of these and check their intersections.
-        for subsets in itertools.combinations(km1_skel[-1], k+1):
+        for subsets in itertools.combinations(km1_simps, k+1):
             # First we check if this is even a candidate k-simplex
             sets = [set(s) for s in subsets]
             simplex = functools.reduce(lambda a,b: a|b, [set(s) for s in subsets])
@@ -97,11 +99,9 @@ class MAPPERResult:
                 clusters = [self.nodes[n] for n in simplex]
                 common = functools.reduce(lambda a,b: a&b, clusters)
                 if len(common) > 0:
-                    k_simps.append(tuple(simplex))
+                    self.complex.add_simplex(sorted(simplex))
         
-        return km1_skel + (k_simps,)
-            
-            
+        return self.complex
     
     def get_igraph_network(self):
         """
@@ -109,7 +109,8 @@ class MAPPERResult:
         
         This requires the igraph package to be installed.
         """
-        nodes, edges = self.compute_1_skeleton()
+        nodes = self.complex.get_k_simplices(k=0, include_data=True)
+        edges = self.complex.get_k_simplices(k=1)
         return create_igraph_network(nodes, edges)
     
     def get_networkx_network(self):
@@ -118,7 +119,8 @@ class MAPPERResult:
         
         This requires the networkx package to be installed.
         """
-        nodes, edges = self.compute_1_skeleton()
+        nodes = self.complex.get_k_simplices(k=0, include_data=True)
+        edges = self.complex.get_k_simplices(k=1)
         return create_networkx_network(nodes, edges)
 
 class MAPPER:
