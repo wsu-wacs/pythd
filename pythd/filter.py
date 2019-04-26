@@ -14,16 +14,27 @@ class BaseFilter(ABC):
     def __call__(self, arg):
         return self.get_values(arg)
 
-class ScikitLearnFilter(BaseFilter):
+class TrainableFilter(BaseFilter):
+    @abstractmethod
+    def reset(self):
+        pass
+
+class ScikitLearnFilter(TrainableFilter):
     """Filter functions used in scikit-learn
     """
     def __init__(self, cls, *args, **kwargs):
         self.cls = cls
         self.args = args
         self.kwargs = kwargs
+        
+        self.reset()
+    
+    def reset(self):
+        self.fit = False
+        self.filt = self.cls(*self.args, **self.kwargs)
     
     def get_values(self, arg):
-        filt = self.cls(*self.args, **self.kwargs)
+        
         return filt.fit_transform(arg)
 
 class CustomFilter(BaseFilter):

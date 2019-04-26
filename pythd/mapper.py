@@ -65,7 +65,7 @@ class MAPPERResult:
     
     def compute_k_skeleton(self, k=1):
         """
-        Compute the k-skeleton of the MAPPER
+        Compute the k-skeleton of the MAPPER and return the resulting simplicial complex
         
         Parameters
         ----------
@@ -74,9 +74,8 @@ class MAPPERResult:
         
         Returns
         -------
-        tuple
-            A tuple where the first element is 0-simplices, the next one 1-simplices,
-            and so on up to k-simplices.
+        pythd.complex.SimplicialComplex
+            The simplicial complex object
         """
         if k < 0:
             raise ValueError(f"Invalid value of k for k-skeleton: {k}")
@@ -92,8 +91,8 @@ class MAPPERResult:
         # Consider all possible combinations of these and check their intersections.
         for subsets in itertools.combinations(km1_simps, k+1):
             # First we check if this is even a candidate k-simplex
-            sets = [set(s) for s in subsets]
-            simplex = functools.reduce(lambda a,b: a|b, [set(s) for s in subsets])
+            sets = [frozenset(s) for s in subsets]
+            simplex = functools.reduce(lambda a,b: a|b, [frozenset(s) for s in subsets])
             if len(simplex) == (k+1):
                 # This could be a k-simplex, now check for overlap in clusters
                 clusters = [self.nodes[n] for n in simplex]
@@ -101,6 +100,11 @@ class MAPPERResult:
                 if len(common) > 0:
                     self.complex.add_simplex(sorted(simplex))
         
+        return self.complex
+    
+    def get_complex(self):
+        """Get the simplicial complex associated to the MAPPER result.
+        """
         return self.complex
     
     def get_igraph_network(self):
