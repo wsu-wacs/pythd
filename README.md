@@ -27,12 +27,13 @@ dataset = (pythd.datagen.DatasetGenerator()
                 .circle(center=[4.0, 0.0], radius=4.0, noise=0.06, num_points=200)).get()
 
 # Setup MAPPER
-filt = pythd.filter.ComponentFilter(0) # filter: x component
+filt = pythd.filter.IdentityFilter() # use x,y coordinates as filter
 f_x = filt(dataset) # filter values
-cover = pythd.cover.IntervalCover1D.EvenlySpacedFromValues(f_x, 10, 0.5)
-clustering = pythd.clustering.HierarchicalClustering() # scipy hierarchical clustering
+cover = pythd.cover.IntervalCover.EvenlySpacedFromValues(f_x, 4, 0.5)
+clustering = pythd.clustering.HierarchicalClustering()
 mapper = pythd.mapper.MAPPER(filter=filt, cover=cover, clustering=clustering)
-res = mapper.run(dataset) # run clustering step of MAPPER
+res = mapper.run(dataset, f_x=f_x) # run clustering step of MAPPER
+network = res.compute_k_skeleton(k=1) # compute the one skeleton
 ```
 
 To visualize the graph, there are three methods. The first uses igraph:
@@ -51,9 +52,10 @@ nx.draw(g)
 ```
 
 The third is the recommended approach; there is support for drawing 2-simplices (faces) as well
-as the nodes and edges, and support for node density coloring. You'll need to provide the layout,
+as the nodes and edges, and support for node coloring. You'll need to provide the layout,
 however, either computed with igraph or generated on your own:
 ```python
 # re-using the layout computed from igraph above
-pythd.plotting.draw_2_skeleton(res.compute_k_skeleton(k=2), layout)
+coloring = pythd.coloring.create_node_coloring(f_x[:,0], network) # x-coordinate as coloring
+pythd.plotting.draw_topological_network(network, layout, node_coloring=coloring)
 ```
