@@ -77,6 +77,9 @@ def draw_topological_network(complex, layout, node_coloring="density"):
     layout: object
         An object which implements the __getitem__ method which is used to get the
         positions of the nodes in the network
+    node_coloring : str or dict
+        An optional node coloring to use. If a dict, should be a coloring dictionary
+        mapping from 0 simplices to colors.
     """
     fig, ax = plt.subplots()
     fig.set_size_inches((10,10))
@@ -103,6 +106,9 @@ def draw_2_skeleton(complex, layout, node_coloring="density"):
     layout: object
         An object which implements the __getitem__ method which is used to get the
         positions of the nodes in the network
+    node_coloring : str or dict
+        An optional node coloring to use. If a dict, should be a coloring dictionary
+        mapping from 0 simplices to colors.
     """
     fig, ax = plt.subplots()
     fig.set_size_inches((10,10))

@@ -15,6 +15,11 @@ def create_node_coloring(values, complex):
         An iterable of floats representing the values associated to points.
     complex : tuple
         The simplicial complex on which to create the coloring.
+    
+    Returns
+    -------
+    dict
+        A dictionary mapping from 0-simplices (nodes) to coloring values
     """
     values = np.array(values)
     minv = values.min()
@@ -33,7 +38,18 @@ def create_node_coloring(values, complex):
     return colors
 
 def create_node_density_coloring(nodes):
-    """Create a node density based coloring from a simplicial complex.
+    """
+    Create a node density based coloring from a simplicial complex.
+    
+    Parameters
+    ----------
+    nodes : list
+        Nodes in the complex with associated data including point membership
+    
+    Returns
+    -------
+    dict
+        A dictionary mapping from 0-simplices (nodes) to coloring values
     """
     node_counts = {n[0]: len(dict["points"]) for n, data, dict in nodes}
     min_n = min(node_counts.values())

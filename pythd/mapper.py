@@ -13,6 +13,20 @@ from .complex import SimplicialComplex
 def create_igraph_network(nodes, edges):
     """
     Convert a 1-skeleton to an igraph network.
+    
+    This function requires the python-igraph package to be installed.
+    
+    Parameters
+    ----------
+    nodes : list
+        List of 0-simplices with associated data and dict
+    edges : list
+        List of 1-simplices
+    
+    Returns
+    -------
+    igraph.Graph
+        The igraph Graph constructed from the 1-skeleton
     """
     import igraph
     g = igraph.Graph()
@@ -24,6 +38,20 @@ def create_igraph_network(nodes, edges):
 def create_networkx_network(nodes, edges):
     """
     Convert a 1-skeleton to a networkx network.
+    
+    This function requires the networkx package to be installed.
+
+    Parameters
+    ----------
+    nodes : list
+        List of 0-simplices with associated data and dict
+    edges : list
+        List of 1-simplices
+    
+    Returns
+    -------
+    networkx.Graph
+        The networkx Graph constructed from the 1-skeleton
     """
     import networkx as nx
     g = nx.Graph()
@@ -37,6 +65,14 @@ class MAPPERResult:
         Represents the result of a MAPPER - the set of nodes with memberships.
         
         This is the 0-skeleton of the complex.
+        
+        Attributes
+        ----------
+        nodes
+            The 0 simplices in the complex. Constructed by the clustering.
+        complex : SimplicialComplex
+            The simplicial complex constructed from this cover. Contains the
+            k-skeleton, where k is the highest order passed in to compute_k_skeleton
     """
     def __init__(self, nodes):
         self.nodes = nodes
@@ -47,6 +83,11 @@ class MAPPERResult:
     def compute_0_skeleton(self):
         """
         Get the 0-skeleton of the MAPPER.
+        
+        Returns
+        -------
+        SimplicialComplex
+            The simplicial complex. 
         """
         return self.complex
 
@@ -103,7 +144,13 @@ class MAPPERResult:
         return self.complex
     
     def get_complex(self):
-        """Get the simplicial complex associated to the MAPPER result.
+        """
+        Get the simplicial complex associated to the MAPPER result.
+        
+        Returns
+        -------
+        SimplicialComplex
+            The simplicial complex associated with the MAPPER result
         """
         return self.complex
     
@@ -113,6 +160,7 @@ class MAPPERResult:
         
         This requires the igraph package to be installed.
         """
+        self.compute_1_skeleton()
         nodes = self.complex.get_k_simplices(k=0, include_data=True)
         edges = self.complex.get_k_simplices(k=1)
         return create_igraph_network(nodes, edges)
@@ -123,11 +171,24 @@ class MAPPERResult:
         
         This requires the networkx package to be installed.
         """
+        self.compute_1_skeleton()
         nodes = self.complex.get_k_simplices(k=0, include_data=True)
         edges = self.complex.get_k_simplices(k=1)
         return create_networkx_network(nodes, edges)
 
 class MAPPER:
+    """
+    This class represents the MAPPER algorithm.
+    
+    Attributes
+    ----------
+    filter : BaseFilter
+        A filter function which computes a lower-dimensional representation of the data
+    cover : BaseCover
+        A covering of the range of the filter function
+    clustering : BaseClustering
+        A class which can cluster subsets of the data and return flat clusters
+    """
     def __init__(self, filter=None, cover=None, clustering=None):
         self.set_filter(filter)
         self.set_cover(cover)
@@ -154,6 +215,16 @@ class MAPPER:
         points : numpy.ndarray
             The dataset in the shape (num_points, num_features). The columns should
             have the same dimension as the input to the filter function.
+        f_x : numpy.ndarray
+            (Optional) pre-computed filter values. For filter functions that take a long time,
+            it may be more helpful to precompute the filter values and pass them here. This is
+            also useful if you want to use a coloring based on filter values and do not wish
+            to recompute them.
+        
+        Returns
+        -------
+        MAPPERResult
+            A MAPPERResult object which can be used to construct a simplicial complex.
         """
         if f_x is None:
             f_x = self.filter(points)
