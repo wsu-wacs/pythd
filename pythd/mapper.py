@@ -9,6 +9,9 @@ import functools
 import numpy as np
 
 from .complex import SimplicialComplex
+from .filter import BaseFilter
+from .cover import BaseCover
+from .clustering import BaseClustering
 
 def create_igraph_network(nodes, edges):
     """
@@ -69,16 +72,22 @@ class MAPPERResult:
         Attributes
         ----------
         nodes
-            The 0 simplices in the complex. Constructed by the clustering.
+            The 0 simplices in the complex.
         complex : SimplicialComplex
             The simplicial complex constructed from this cover. Contains the
             k-skeleton, where k is the highest order passed in to compute_k_skeleton
+            
+        Parameters
+        ----------
+        complex : SimplicialComplex
+            The 0-skeleton of the simplicial complex, constructed by the clustering
+            run in the MAPPER class.
     """
-    def __init__(self, nodes):
-        self.nodes = nodes
-        self.complex = SimplicialComplex()
-        for k, v in self.nodes.items():
-            self.complex.add_simplex((k,), points=v)
+    def __init__(self, complex):
+        self.complex = complex
+        self.nodes = {}
+        for simplex, data, node_dict in self.complex.get_k_simplices(0, True):
+            self.nodes[simplex[0]] = (data, node_dict)
     
     def compute_0_skeleton(self):
         """
@@ -98,7 +107,9 @@ class MAPPERResult:
         This will compute the 1-skeleton of the MAPPER and return the nodes and edges.
         """
         for n1, n2 in itertools.combinations(sorted(self.nodes.keys()), 2):
-            common = self.nodes[n1].intersection(self.nodes[n2])
+            points1 = self.nodes[n1][1]["points"]
+            points2 = self.nodes[n2][1]["points"]
+            common = points1.intersection(points2)
             if len(common) > 0:
                 self.complex.add_simplex((n1,n2))
         
@@ -136,7 +147,7 @@ class MAPPERResult:
             simplex = functools.reduce(lambda a,b: a|b, [frozenset(s) for s in subsets])
             if len(simplex) == (k+1):
                 # This could be a k-simplex, now check for overlap in clusters
-                clusters = [self.nodes[n] for n in simplex]
+                clusters = [self.nodes[n][1]["points"] for n in simplex]
                 common = functools.reduce(lambda a,b: a&b, clusters)
                 if len(common) > 0:
                     self.complex.add_simplex(sorted(simplex))
@@ -195,24 +206,33 @@ class MAPPER:
         self.set_clustering(clustering)
     
     def set_filter(self, filter):
+        """Set the filter function"""
+        if not isinstance(filter, BaseFilter):
+            raise TypeError(f"Incorrect filter type: {type(filter)}")
         self.filter = filter
         return self
     
     def set_cover(self, cover):
+        """Set the cover function"""
+        if not isinstance(cover, BaseCover):
+            raise TypeError(f"Incorrect cover type: {type(cover)}")
         self.cover = cover
         return self
     
     def set_clustering(self, clustering):
+        """Set the clustering method"""
+        if not isinstance(clustering, BaseClustering):
+            raise TypeError("Incorrect clustering type: {type(clustering)}")
         self.clustering = clustering
         return self
     
-    def run(self, points, f_x=None):
+    def run(self, points, f_x=None, rids=None):
         """
         Run MAPPER on the given data
         
         Parameters
         ----------
-        points : numpy.ndarray
+        points : numpy.ndarray or list
             The dataset in the shape (num_points, num_features). The columns should
             have the same dimension as the input to the filter function.
         f_x : numpy.ndarray
@@ -220,18 +240,37 @@ class MAPPER:
             it may be more helpful to precompute the filter values and pass them here. This is
             also useful if you want to use a coloring based on filter values and do not wish
             to recompute them.
+        rids : list
+            Identifier numbers for each point. Used to keep track of membership in a larger
+            dataset when running MAPPER on a subset of the dataset. 
         
         Returns
         -------
         MAPPERResult
             A MAPPERResult object which can be used to construct a simplicial complex.
         """
+        # allow a list to be passed if it can be converted to a numpy array 
+        if isinstance(points, list):
+            points = np.array(points)
+        if not isinstance(points, np.ndarray):
+            raise TypeError(f"points array should be a numpy array, not {type(points)}")
+        
+        if rids is None:
+            rids = list(range(points.shape[0]))
+        elif not isinstance(rids, list):
+            raise TypeError(f"RIDs should be given as a list, not {type(rids)}")
+
         if f_x is None:
             f_x = self.filter(points)
+        elif isinstance(f_x, list):
+            f_x = np.array(f_x)
+        if not isinstance(f_x, np.ndarray):
+            raise TypeError(f"Passed filter values should be a numpy array, not {type(f_x)}")
+
         d = self.cover.get_open_set_membership_dict(f_x)
         
-        nodes = {}
         num_nodes = 0
+        complex = SimplicialComplex()
         
         for open_set_id, members in d.items():
             memb_np = np.array(members)
@@ -241,8 +280,9 @@ class MAPPER:
                 clusters = self.clustering.cluster(points[members])
             
             for clust_id, cluster in enumerate(clusters):
-                nid = num_nodes
+                pointset = frozenset(memb_np[cluster]) # indexes within points array
+                points_orig = frozenset([rids[idx] for idx in pointset]) # RIDs of points within points array
+                complex.add_simplex((num_nodes,), points=pointset, points_orig=points_orig)
                 num_nodes += 1
-                nodes[nid] = set(memb_np[cluster])
         
-        return MAPPERResult(nodes)
+        return MAPPERResult(complex)

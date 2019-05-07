@@ -64,7 +64,12 @@ class HierarchicalClustering(BaseClustering):
         
     """
     def __init__(self, method='single', metric='euclidean'):
+        if not isinstance(method, str):
+            raise TypeError(f"Clustering method must be a string, not {type(method)}")
         self.method = method
+        
+        if not isinstance(metric, str):
+            raise TypeError(f"Distance metric must be a string, not {type(metric)}")
         self.metric = metric
     
     def cluster(self, points, cut_method="first_gap"):
@@ -88,8 +93,13 @@ class HierarchicalClustering(BaseClustering):
             A list of clusters. Each cluster is a list of integers indexing the
             original points array.
         """
+        if isinstance(points, list):
+            points = np.array(points)
+        if not isinstance(points, np.ndarray):
+            raise TypeError(f"Points given to clustering method must be a numpy array, not {type(points)}")
+
         Z = linkage(points, method=self.method, metric=self.metric)
-        num_points = len(points)
+        num_points = points.shape[0]
         
         # Method used in original MAPPER paper
         if cut_method == "first_gap":

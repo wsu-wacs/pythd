@@ -9,6 +9,18 @@ from abc import ABC, abstractmethod
 class BaseFilter(ABC):
     @abstractmethod
     def get_values(self, arg):
+        """Given a set of points, get the filter values.
+        
+        Parameters
+        ----------
+        arg : numpy.ndarray
+            The points to transform
+        
+        Returns
+        -------
+        numpy.ndarray
+            The filter values
+        """
         pass
     
     def __call__(self, arg):
@@ -21,6 +33,15 @@ class TrainableFilter(BaseFilter):
 
 class ScikitLearnFilter(TrainableFilter):
     """Filter functions used in scikit-learn
+    
+    Parameters
+    ----------
+    cls: class
+        The class of the filter. Should implement the fit_transform method.
+    *args
+        Positional arguments passed to the scikit-learn class
+    **kwargs
+        Keyword arguments passedt to the scikit-learn class
     """
     def __init__(self, cls, *args, **kwargs):
         self.cls = cls
@@ -34,7 +55,6 @@ class ScikitLearnFilter(TrainableFilter):
         self.filt = self.cls(*self.args, **self.kwargs)
     
     def get_values(self, arg):
-        
         return filt.fit_transform(arg)
 
 class CustomFilter(BaseFilter):

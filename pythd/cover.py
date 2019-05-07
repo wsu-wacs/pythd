@@ -40,7 +40,25 @@ class _1DBins:
     @classmethod
     def EvenlySpaced(cls, num_intervals, minv, maxv, overlap):
         """Specify evenly-spaced intervals with given overlap
+        
+        Parameters
+        ----------
+        num_intervals : int
+            Number of intervals to include in this dimension
+        minv : float
+            Left endpoint of the first (lowest) interval
+        maxv : float
+            Right endpoint of the last (largest) interval
+        overlap : float
+            Proportion of overlap of the intervals, a value between 0 and 1
         """
+        if num_intervals < 1:
+            raise ValueError("Must have at least one interval.")
+        if minv > maxv:
+            raise ValueError("Left endpoint can not be larger than right endpoint.")
+        if overlap < 0.0 or overlap > 1.0:
+            raise ValueError("Overlap must be a value between 0 and 1.")
+
         rhat = float(maxv - minv) / num_intervals
         r = rhat * (1.0 + overlap / (1.0 - overlap))
         eps = r * 0.5
@@ -54,6 +72,21 @@ class _1DBins:
         return cls(bins)
     
     def get_bins_value_is_in(self, value):
+        """Get the interval IDs of the intervals a point falls in.
+        
+        Parameters
+        ----------
+        value : float or int
+            The value to test
+        
+        Returns
+        -------
+        list
+            List of bin IDs that the point falls in
+        """
+        if not isinstance(value, (int, float)):
+            raise TypeError("Value must be a numeric type.")
+
         containing = []
         for i in range(self.num_intervals):
             a, b = self.bins[i]
@@ -62,6 +95,7 @@ class _1DBins:
         return containing
         
 class IntervalCover1D(BaseCover):
+    """A one-dimensional interval cover."""
     def __init__(self, bins):
         self.bins = bins
         
@@ -92,6 +126,20 @@ class IntervalCover(BaseCover):
         
     @classmethod
     def EvenlySpaced(cls, num_intervals, minvs, maxvs, overlaps):
+        """
+        Construct the cover using evenly spaced intervals.
+        
+        Parameters
+        ----------
+        num_intervals : int or list
+            The number of intervals to include in each dimension
+        minvs : list
+            Minimum values for each dimension
+        maxvs : list
+            Maximum values for each dimension
+        overlaps : float or list
+            Overlap values for each dimension
+        """
         dim = len(minvs)
         
         if isinstance(num_intervals, int):
