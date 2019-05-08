@@ -6,6 +6,7 @@ Rewritten and modified by Kyle Brown <brown.718@wright.edu>
 """
 from abc import ABC, abstractmethod
 import itertools
+import numpy as np
 
 class BaseCover(ABC):
     @abstractmethod
@@ -58,7 +59,7 @@ class _1DBins:
             raise ValueError("Left endpoint can not be larger than right endpoint.")
         if overlap < 0.0 or overlap > 1.0:
             raise ValueError("Overlap must be a value between 0 and 1.")
-
+        
         rhat = float(maxv - minv) / num_intervals
         r = rhat * (1.0 + overlap / (1.0 - overlap))
         eps = r * 0.5
@@ -85,13 +86,20 @@ class _1DBins:
             List of bin IDs that the point falls in
         """
         if not isinstance(value, (int, float)):
-            raise TypeError("Value must be a numeric type.")
+            raise TypeError(f"Value must be a numeric type, not {type(value)}. Value: {value}")
 
         containing = []
         for i in range(self.num_intervals):
             a, b = self.bins[i]
-            if a <= value and value <= b:
+            # First bin continues infinitely to the left
+            if i == 0 and value <= b:
                 containing.append(i)
+            # Last bin continues infinitely to the right
+            elif (i + 1) == self.num_intervals and a <= value:
+                containing.append(i)
+            elif a <= value and value <= b:
+                containing.append(i)
+
         return containing
         
 class IntervalCover1D(BaseCover):
@@ -112,6 +120,8 @@ class IntervalCover1D(BaseCover):
         return cls(bins)
 
     def get_open_set_membership(self, value):
+        if isinstance(value, (list, np.ndarray)):
+            value = value[0]
         return self.bins.get_bins_value_is_in(value)
 
 class IntervalCover(BaseCover):
@@ -176,4 +186,5 @@ class IntervalCover(BaseCover):
             For this cover, the indices will be tuples of integers giving the
             indices of intervals in each dimension.
         """
-        return list(itertools.product(*[self.bbins[i].get_bins_value_is_in(v) for i, v in enumerate(value)]))
+        bins_in = [self.bbins[i].get_bins_value_is_in(v) for i, v in enumerate(value)]
+        return list(itertools.product(*bins_in))

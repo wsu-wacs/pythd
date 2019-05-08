@@ -2,7 +2,7 @@ import unittest
 import numpy as np
 import random
 
-from pythd.cover import _1DBins
+from pythd.cover import _1DBins, IntervalCover
 
 class TestBins(unittest.TestCase):
     def setUp(self):
@@ -31,3 +31,19 @@ class TestBins(unittest.TestCase):
             
             if len(bins) == 2:
                 self.assertEqual(bins[0]+1, bins[1])
+
+class TestIntervalCover(unittest.TestCase):
+    def setUp(self):
+        self.data = np.random.rand(1000, 2)
+        self.no_overlap = IntervalCover.EvenlySpacedFromValues(self.data, 5, 0.0)
+        self.overlap = IntervalCover.EvenlySpacedFromValues(self.data, 5, 0.5)
+    
+    def test_no_overlap(self):
+        for point in self.data:
+            bins = self.no_overlap.get_open_set_membership(point)
+            self.assertEqual(len(bins), 1)
+    
+    def test_overlap(self):
+        for point in self.data:
+            bins = self.overlap.get_open_set_membership(point)
+            self.assertIn(len(bins), [1,2,3,4])
