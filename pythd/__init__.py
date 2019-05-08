@@ -1,1 +1,1 @@
-from . import clustering, cover, filter, mapper, datagen, plotting, coloring, complex
+from . import clustering, cover, filter, mapper, datagen, plotting, coloring, complex, loaders
