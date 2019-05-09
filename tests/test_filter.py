@@ -1,7 +1,7 @@
 import unittest
 import numpy as np
 
-from pythd.filter import IdentityFilter, ComponentFilter
+from pythd.filter import IdentityFilter, ComponentFilter, CombinedFilter, EccentricityFilter
 
 class TestIdentityFilter(unittest.TestCase):
     def setUp(self):
@@ -28,7 +28,7 @@ class TestComponentFilter(unittest.TestCase):
             f = ComponentFilter(i)
             y = f(self.x)
             
-            self.assertTrue((self.x[:, i] == y).all())
+            self.assertTrue((self.x[:, [i]] == y).all())
 
     def test_multi_component(self):
         for i in [[0,1,2], [3,4,5], [0], [0,19]]:
@@ -36,3 +36,37 @@ class TestComponentFilter(unittest.TestCase):
             y = f(self.x)
             
             self.assertTrue((self.x[:, i] == y).all())
+
+class TestCombinedFilter(unittest.TestCase):
+    def setUp(self):
+        self.x = np.random.rand(50, 3)
+        self.id = IdentityFilter()
+        self.filter = CombinedFilter(ComponentFilter(0), ComponentFilter(1), ComponentFilter(2))
+    
+    def test_identity(self):
+        id_data = self.id(self.x)
+        filter_data = self.filter(self.x)
+        self.assertTrue((id_data == filter_data).all())
+
+class TestEccentricityFilter(unittest.TestCase):
+    def setUp(self):
+        self.x = np.random.rand(50, 2)
+    
+    def test_mean(self):
+        filt = EccentricityFilter(method="mean")
+        ecc = filt(self.x)
+        
+        self.assertEqual(ecc.shape[0], self.x.shape[0])
+        self.assertEqual(ecc.shape[1], 1)
+        
+        self.assertTrue((ecc >= 0).all())
+    
+    def test_medoid(self):
+        filt = EccentricityFilter(method="medoid")
+        ecc = filt(self.x)
+        
+        self.assertEqual(ecc.shape[0], self.x.shape[0])
+        self.assertEqual(ecc.shape[1], 1)
+        
+        self.assertTrue((ecc >= 0).all())
+        self.assertEqual(ecc.min(), 0.0)
