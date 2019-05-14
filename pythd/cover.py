@@ -5,6 +5,7 @@ Original code by Xiu Huan Yap <yap.4@wright.edu>
 Rewritten and modified by Kyle Brown <brown.718@wright.edu>
 """
 from abc import ABC, abstractmethod
+import copy
 import itertools
 import numpy as np
 
@@ -37,6 +38,24 @@ class _1DBins:
         self.num_intervals = len(bins)
         self.minv = bins[0][0]
         self.maxv = bins[-1][1]
+    
+    def __repr__(self):
+        return f"_1DBins({self.bins!r})"
+        
+    def __str__(self):
+        return f"1DBins from {self.minv} to {self.maxv} with {self.num_intervals} bins"
+    
+    def __copy__(self):
+        cls = self.__class__
+        new_obj = cls(self.bins)
+        new_obj.__dict__.update(self.__dict__)
+        return new_obj
+    
+    def __deepcopy__(self, memo):
+        new_bins = copy.deepcopy(self.bins, memo)
+        cls = self.__class__
+        new_obj = cls(new_bins)
+        return new_obj
     
     @classmethod
     def EvenlySpaced(cls, num_intervals, minv, maxv, overlap):
@@ -71,6 +90,65 @@ class _1DBins:
             bins.append(b)
         
         return cls(bins)
+    
+    def change_size(self, expand=True, amount=None, proportion=0.1, do_copy=False):
+        """Expand or shrink the size of each bin by a given amount
+        
+        Parameters
+        ----------
+        expand : bool
+            If True, expands bins. If False, shrinks bins
+        amount : float (optional)
+            The amount to change the size of each bin by. If not given,
+            then the parameter proportion is used instead
+        proportion : float
+            Expand each bin by this proportion of its size
+        do_copy : bool
+            If True, make a deep copy of this _1DBins object and expand that
+
+        Returns
+        -------
+        _1DBins
+            The _1DBins object with expanded/contracted bins
+        """
+        obj = self
+        if do_copy:
+            obj = copy.deepcopy(self)
+        
+        for i, bin in enumerate(obj.bins):
+            a, b = bin
+            if amount is not None:
+                amt = amount*0.5
+            else:
+                w = b - a
+                amt = 0.5*proportion*w
+            
+            if expand:
+                a -= amt
+                b += amt
+            else:
+                a += amt
+                b -= amt
+                if b < a:
+                    b = a
+            
+            obj.bins[i] = (a, b)
+        
+        return obj
+    
+    def expand(self, amount=None, proportion=0.1, do_copy=False):
+        """Increase the size of the bins.
+        
+        For parameters and return value, see change_size()
+        """
+        return self.change_size(expand=True, amount=amount, proportion=proportion, do_copy=do_copy)
+    
+    def contract(self, amount=None, proportion=0.1, do_copy=False):
+        """Shrink each of the bins.
+        
+        For parameters and return value, see change_size()
+        """
+        return self.change_size(expand=False, amount=amount, proportion=proportion, do_copy=do_copy)
     
     def get_bins_value_is_in(self, value):
         """Get the interval IDs of the intervals a point falls in.
@@ -133,6 +211,18 @@ class IntervalCover(BaseCover):
     """
     def __init__(self, bbins):
         self.bbins = bbins
+    
+    def __copy__(self):
+        cls = self.__class__
+        new_obj = cls(self.bbins)
+        new_obj.__dict__.update(self.__dict__)
+        return new_obj
+    
+    def __deepcopy__(self, memo):
+        bbins = copy.deepcopy(self.bbins, memo)
+        cls = self.__class__
+        new_obj = cls(bbins)
+        return new_obj
         
     @classmethod
     def EvenlySpaced(cls, num_intervals, minvs, maxvs, overlaps):
@@ -188,3 +278,40 @@ class IntervalCover(BaseCover):
         """
         bins_in = [self.bbins[i].get_bins_value_is_in(v) for i, v in enumerate(value)]
         return list(itertools.product(*bins_in))
+
+    def change_size(self, expand=True, amounts=None, proportions=0.1, do_copy=False):
+        """Change the size of the open sets
+        
+        Parameters
+        ----------
+        expand : bool
+            True to increase the size, False to decrease the size
+        amounts : float or list or tuple (optional)
+            The amount to change size by in each dimension. If not given then
+            proportions is used instead
+        proportions : float or list or tuple
+            The proportion to change size by in each dimension. Only used if
+            amounts is not given
+        do_copy : bool
+            Whether to make a deep copy of this IntervalCover, or to change size
+            in place
+        """
+        obj = self
+        if do_copy:
+            obj = copy.deepcopy(self)
+
+        if not isinstance(amounts, (list, tuple)):
+            amounts = [amounts for bins in self.bbins]
+        if not isinstance(proportions, (list, tuple)):
+            proportions = [proportions for bins in self.bbins]
+        
+        for i, bins in enumerate(obj.bbins):
+            obj.bbins[i] = bins.change_size(expand=expand, amount=amounts[i], proportion=proportions[i], do_copy=do_copy)
+        
+        return obj
+    
+    def expand(self, amounts=None, proportions=0.1, do_copy=False):
+        return self.change_size(expand=True, amounts=amounts, proportions=proportions, do_copy=do_copy)
+    
+    def contract(self, amounts=None, proportions=0.1, do_copy=False):
+        return self.change_size(expand=False, amounts=amounts, proportions=proportions, do_copy=do_copy)
