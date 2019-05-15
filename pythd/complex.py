@@ -3,7 +3,10 @@ Classes to represent and manipulate simplicial complexes
 
 By Kyle Brown <brown.718@wright.edu>
 """
+import pickle
 import itertools
+
+from .utils import open_or_use
 
 class SimplicialTreeNode(object):
     """
@@ -152,6 +155,43 @@ class SimplicialComplex(object):
                 k_simplices += self._get_k_simplices_base(child, k=k, 
                                                           include_data=include_data)
         return k_simplices
+
+    def _get_node_children_simplices(self, node, simplex=()):
+        """Get the simplices represented by this node and its children.
+        
+        This is used in getting cofaces.
+        """
+        s = [simplex]
+        for n in node.get_children().values():
+            s = s + self._get_node_children_simplices(n, simplex + (n.id,))
+        return s
+    
+    def save(self, fname=None, f=None, format="pickle"):
+        """Save the simplicial complex."""
+        if (fname is None) and (f is None):
+            raise ValueError("Must give a file name or file object.")
+    
+    def save_json(self, fname=None, f=None):
+        """Save the simplicial complex into a JSON file."""
+        if (fname is None) and (f is None):
+            raise ValueError("Must give a file name or file object.")
+
+    def save_pickle(self, fname=None, f=None):
+        """Pickle the simplicial complex."""
+        if (fname is None) and (f is None):
+            raise ValueError("Must give a file name or file object.")
+
+        with open_or_use(fname, f, "wb") as fobj:
+            pickle.dump(self, fobj)
+
+    @classmethod
+    def load_pickle(cls, fname=None, f=None):
+        if (fname is None) and (f is None):
+            raise ValueError("Must give a file name or file object.")
+
+        with open_or_use(fname, f, "rb") as fobj:
+            obj = pickle.load(fobj)
+        return obj
         
     def get_k_simplices(self, k=0, include_data=False):
         """Get k-simplices in the complex.
@@ -241,12 +281,6 @@ class SimplicialComplex(object):
                 raise KeyError(f"Simplex {simplex} not in the complex")
             node = node.children[i]
         return node
-    
-    def _get_node_children_simplices(self, node, simplex=()):
-        s = [simplex]
-        for n in node.get_children().values():
-            s = s + self._get_node_children_simplices(n, simplex + (n.id,))
-        return s
     
     def get_cofaces(self, simplex):
         """Get the cofaces of a simplex

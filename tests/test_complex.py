@@ -1,3 +1,4 @@
+import os
 import unittest
 import itertools
 
@@ -15,6 +16,10 @@ class TestSimplicialComplex(unittest.TestCase):
         self.simplices = [(1,2,3), (1,4), (2,4)]
         for simplex in self.simplices:
             self.complex.add_simplex(simplex, data=simplex)
+    
+    def tearDown(self):
+        if os.path.exists("temp.pickle"):
+            os.remove("temp.pickle")
         
     def test_is_simplex(self):
         # Verify that all the right simplices are in there
@@ -48,3 +53,9 @@ class TestSimplicialComplex(unittest.TestCase):
         
         cofaces = frozenset(self.complex.get_cofaces((3,)))
         self.assertEqual(cofaces, frozenset([(3,),(1,3),(2,3),(1,2,3)]))
+    
+    def test_save(self):
+        self.complex.save_pickle(fname="temp.pickle")
+        complex = SimplicialComplex.load_pickle(fname="temp.pickle")
+        for k in range(1, 4):
+            self.assertEqual(complex.get_k_simplices(k=k), self.complex.get_k_simplices(k=k))

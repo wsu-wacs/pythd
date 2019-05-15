@@ -7,6 +7,8 @@ Rewritten and modified by Kyle Brown <brown.718@wright.edu>
 from abc import ABC, abstractmethod
 import copy
 import itertools
+import pickle
+
 import numpy as np
 
 class BaseCover(ABC):
