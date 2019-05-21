@@ -20,6 +20,8 @@ class TestSimplicialComplex(unittest.TestCase):
     def tearDown(self):
         if os.path.exists("temp.pickle"):
             os.remove("temp.pickle")
+        if os.path.exists("temp.json"):
+            os.remove("temp.json")
         
     def test_is_simplex(self):
         # Verify that all the right simplices are in there
@@ -57,5 +59,10 @@ class TestSimplicialComplex(unittest.TestCase):
     def test_save(self):
         self.complex.save_pickle(fname="temp.pickle")
         complex = SimplicialComplex.load_pickle(fname="temp.pickle")
+        for k in range(1, 4):
+            self.assertEqual(complex.get_k_simplices(k=k), self.complex.get_k_simplices(k=k))
+        
+        self.complex.save_json(fname="temp.json")
+        complex = SimplicialComplex.load_json(fname="temp.json")
         for k in range(1, 4):
             self.assertEqual(complex.get_k_simplices(k=k), self.complex.get_k_simplices(k=k))

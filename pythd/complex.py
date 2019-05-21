@@ -3,6 +3,7 @@ Classes to represent and manipulate simplicial complexes
 
 By Kyle Brown <brown.718@wright.edu>
 """
+import json
 import pickle
 import itertools
 
@@ -78,6 +79,15 @@ class SimplicialTreeNode(object):
         if self.parent is not None and self.parent.id != -1:
             simplex = self.parent.get_simplex() + simplex
         return simplex
+    
+    def _get_dict_repr(self):
+        o = {
+            "simplex": self.get_simplex(),
+            "data": self.data,
+            "dict": self.dict,
+            "order": self.order
+        }
+        return o
     
     def __getitem__(self, key):
         """Get some data associated to this node."""
@@ -166,18 +176,83 @@ class SimplicialComplex(object):
             s = s + self._get_node_children_simplices(n, simplex + (n.id,))
         return s
     
-    def save(self, fname=None, f=None, format="pickle"):
-        """Save the simplicial complex."""
-        if (fname is None) and (f is None):
-            raise ValueError("Must give a file name or file object.")
+    def _get_node_dict_repr(self, node, simplex=()):
+        """Get the json-compatible representation of the given node and all its children"""
+        d = {
+            "simplex": simplex,
+            "data": node.data,
+            "dict": node.dict,
+            "order": node.order
+        }
+        s = [d]
+        for n in node.get_children().values():
+            s = s + self._get_node_dict_repr(n, simplex + (n.id,))
+        return s
     
-    def save_json(self, fname=None, f=None):
-        """Save the simplicial complex into a JSON file."""
+    def _get_dict_repr(self):
+        """Get a dictionary representation of the simplex tree to save in a JSON file"""
+        o = {
+        }
+        
+        simplices = []
+        for n in self.simplex_tree.get_children().values():
+            simplices = simplices + self._get_node_dict_repr(n, simplex=(n.id,))
+        o["simplices"] = simplices
+        return o
+    
+    def save(self, fname=None, f=None, format="pickle"):
+        """Save the simplicial complex.
+        
+        This function saves the simplicial complex, including extra data, to a file.
+        
+        Parameters
+        ----------
+        fname : str
+            The name of the file to save to. Optional if a file object is given.
+        f : file
+            The file object to write the complex to. Not used if a file name is given.
+        format : str
+            The format to save the complex in. Supported formats:
+            * 'pickle' - save as a pickle format. This is the recommended format.
+            * 'json' - save as a JSON file. This results in potentially more compatibility,
+              at the cost of having a larger file size and being slower to read/write.
+        """
         if (fname is None) and (f is None):
             raise ValueError("Must give a file name or file object.")
 
+        if format == "pickle":
+            self.save_pickle(fname=fname, f=f)
+        elif format == "json":
+            self.save_json(fname=f, f=f)
+        else:
+            raise ValueError(f"Unknown format: {format}")
+    
+    def save_json(self, fname=None, f=None):
+        """Save the simplicial complex into a JSON file.
+        
+        Parameters
+        ----------
+        fname : str
+            The name of the file to save to. Optional if a file object is given.
+        f : file
+            The file object to write the complex to. Not used if a file name is given.
+        """
+        if (fname is None) and (f is None):
+            raise ValueError("Must give a file name or file object.")
+        
+        with open_or_use(fname, f, "w") as fobj:
+            json.dump(self._get_dict_repr(), fobj)
+
     def save_pickle(self, fname=None, f=None):
-        """Pickle the simplicial complex."""
+        """Pickle the simplicial complex.
+        
+        Parameters
+        ----------
+        fname : str
+            The name of the file to save to. Optional if a file object is given.
+        f : file
+            The file object to write the complex to. Not used if a file name is given.
+        """
         if (fname is None) and (f is None):
             raise ValueError("Must give a file name or file object.")
 
@@ -185,7 +260,63 @@ class SimplicialComplex(object):
             pickle.dump(self, fobj)
 
     @classmethod
+    def load(cls, fname=None, f=None, format="pickle"):
+        """Load a simplicial complex from a file.
+
+        Parameters
+        ----------
+        fname : str
+            The name of the file to write to. Optional if a file object is given.
+        f : file
+            The file object to read the complex to. Not used if a file name is given.
+        format : str
+            The format to read the complex in. Supported formats:
+            * 'pickle' - read as a pickle format. This is the recommended format.
+            * 'json' - read as a JSON file. This results in potentially more compatibility,
+              at the cost of having a larger file size and being slower to read/write."""
+        if (fname is None) and (f is None):
+            raise ValueError("Must give a file name or file object.")
+        
+        if format == "pickle":
+            return cls.load_pickle(fname=fname, f=f)
+        elif format == "json":
+            return cls.load_json(fname=fname, f=f)
+        else:
+            raise ValueError(f"Unknown format: {format}")
+
+    @classmethod
+    def load_json(cls, fname=None, f=None):
+        """Load a simplicial complex from a JSON file.
+        
+        Parameters
+        ----------
+        fname : str
+            The name of the file to write to. Optional if a file object is given.
+        f : file
+            The file object to read the complex to. Not used if a file name is given.
+        """
+        if (fname is None) and (f is None):
+            raise ValueError("Must give a file name or file object.")        
+        
+        with open_or_use(fname, f, "r") as fobj:
+            d = json.load(fobj)
+
+        complex = SimplicialComplex()
+        for s in d["simplices"]:
+            complex.add_simplex(s["simplex"], data=s["data"], **s["dict"])
+        return complex
+        
+    @classmethod
     def load_pickle(cls, fname=None, f=None):
+        """Load a simplicial complex from a pickle file.
+
+        Parameters
+        ----------
+        fname : str
+            The name of the file to write to. Optional if a file object is given.
+        f : file
+            The file object to read the complex to. Not used if a file name is given.
+        """
         if (fname is None) and (f is None):
             raise ValueError("Must give a file name or file object.")
 
