@@ -11,7 +11,7 @@ import matplotlib.lines as lines
 
 from . import coloring as _coloring
 
-def _draw_node(ax, x, y, radius=0.1, color="#FF0000"):
+def _draw_node(ax, x, y, radius=2, color="#FF0000"):
     """Draw a single node in a MAPPER complex"""
     circ = patches.Circle((x, y), radius=radius, facecolor=color, edgecolor="black", zorder=1.0)
     ax.add_patch(circ)
@@ -26,7 +26,7 @@ def _draw_face(ax, coords):
     patch = patches.Polygon(coords, closed=True, alpha=0.5, color="blue", zorder=-1.0)
     ax.add_patch(patch)
 
-def _draw_nodes(ax, nodes, layout, coloring="density"):
+def _draw_nodes(ax, nodes, layout, coloring="density", radius=0.1):
     """Draw all the nodes in a MAPPER complex"""
     min_x = 1e20
     max_x = 1e-20
@@ -34,6 +34,7 @@ def _draw_nodes(ax, nodes, layout, coloring="density"):
     max_y = 1e-20
     
     colors = {n[0][0]: "red" for n in nodes}
+
     if coloring == "density":
         colors = _coloring.create_node_density_coloring(nodes)
     elif isinstance(coloring, dict):
@@ -48,7 +49,7 @@ def _draw_nodes(ax, nodes, layout, coloring="density"):
         max_x = max(x, max_x)
         min_y = min(y, min_y)
         max_y = max(y, max_y)
-        _draw_node(ax, x, y, color=colors[id])
+        _draw_node(ax, x, y, color=colors[id], radius=radius)
     
     return (min_x, max_x, min_y, max_y)
 
@@ -66,7 +67,7 @@ def _draw_faces(ax, faces, layout):
         coords = np.array([[layout[n][0], -layout[n][1]] for n in face])
         _draw_face(ax, coords)
 
-def draw_topological_network(complex, layout, node_coloring="density"):
+def draw_topological_network(complex, layout, node_coloring="density", node_radius=0.1):
     """Draw the 1-skeleton of a MAPPER output
 
     Parameters
@@ -89,13 +90,13 @@ def draw_topological_network(complex, layout, node_coloring="density"):
     edges = complex.get_k_simplices(k=1)
 
     _draw_edges(ax, edges, layout)
-    min_x, max_x, min_y, max_y = _draw_nodes(ax, nodes, layout, coloring=node_coloring)
+    min_x, max_x, min_y, max_y = _draw_nodes(ax, nodes, layout, coloring=node_coloring, radius=node_radius)
     
     ax.set_xlim(min_x-0.2, max_x+0.2)
     ax.set_ylim(min_y-0.2, max_y+0.2)
     ax.set_aspect(1.0)
 
-def draw_2_skeleton(complex, layout, node_coloring="density"):
+def draw_2_skeleton(complex, layout, node_coloring="density", node_radius=0.1):
     """Draw the 2-skeleton of a MAPPER output
     
     Parameters
@@ -120,8 +121,8 @@ def draw_2_skeleton(complex, layout, node_coloring="density"):
     
     _draw_faces(ax, faces, layout)
     _draw_edges(ax, edges, layout)
-    min_x, max_x, min_y, max_y = _draw_nodes(ax, nodes, layout, coloring=node_coloring)
+    min_x, max_x, min_y, max_y = _draw_nodes(ax, nodes, layout, coloring=node_coloring, radius=node_radius)
     
-    ax.set_xlim(min_x-0.2, max_x+0.2)
-    ax.set_ylim(min_y-0.2, max_y+0.2)
+    ax.set_xlim(min_x-2*node_radius, max_x+2*node_radius)
+    ax.set_ylim(min_y-2*node_radius, max_y+2*node_radius)
     ax.set_aspect(1.0)
