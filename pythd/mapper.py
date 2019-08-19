@@ -143,7 +143,6 @@ class MAPPERResult:
         # Consider all possible combinations of these and check their intersections.
         for subsets in itertools.combinations(km1_simps, k+1):
             # First we check if this is even a candidate k-simplex
-            sets = [frozenset(s) for s in subsets]
             simplex = functools.reduce(lambda a,b: a|b, [frozenset(s) for s in subsets])
             if len(simplex) == (k+1):
                 # This could be a k-simplex, now check for overlap in clusters

@@ -13,7 +13,7 @@ def create_node_coloring(values, complex):
     ----------
     values : iterable
         An iterable of floats representing the values associated to points.
-    complex : tuple
+    complex : pythd.complex.SimplicialComplex
         The simplicial complex on which to create the coloring.
     
     Returns

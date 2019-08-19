@@ -313,7 +313,15 @@ class IntervalCover(BaseCover):
         return obj
     
     def expand(self, amounts=None, proportions=0.1, do_copy=False):
+        """Increase the size of the open sets
+        
+        For parameters and return value, see change_size()
+        """
         return self.change_size(expand=True, amounts=amounts, proportions=proportions, do_copy=do_copy)
     
     def contract(self, amounts=None, proportions=0.1, do_copy=False):
+        """Shrink each of the open sets
+        
+        For parameters and return value, see change_size()
+        """
         return self.change_size(expand=False, amounts=amounts, proportions=proportions, do_copy=do_copy)

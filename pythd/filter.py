@@ -1,6 +1,9 @@
 """
 Filter functions for MAPPER.
 
+A filter function is a dimensionality reduction applied to a point-cloud
+dataset which is used in the MAPPER algorithm.
+
 Original code by Xiu Huan Yap <yap.4@wright.edu>
 Rewritten and modified by Kyle Brown <brown.718@wright.edu>
 """

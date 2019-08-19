@@ -10,9 +10,11 @@ class DatasetGenerator:
         self.data = np.zeros((0,2))
     
     def _add_data(self, data):
+        """Appends newly generated data"""
         self.data = np.concatenate((self.data, data), axis=0)
     
     def get(self):
+        """Get the generated data"""
         return self.data
     
     def circle(self, center=[0.0, 0.0], radius=1.0, num_points=20, noise=0.0):
@@ -40,6 +42,20 @@ class DatasetGenerator:
         return self
     
     def line(self, start=[0.0, 0.0], end=[1.0, 0.0], num_points=10, noise=0.0):
+        """Add a line segment, with optional Gaussian noise
+        
+        Parameters
+        ----------
+        start : iterable
+            Starting point of the line segment
+        end : iterable
+            Ending point of the line segment
+        num_points : int
+            Number of points in the line
+        noise : float
+            Standard deviation of optional Gaussian noise to add to the points of the line
+            Set to 0 to disable noise
+        """
         t = np.linspace(0.0, 1.0, num=num_points, endpoint=True)
         
         x = start[0] + (end[0] - start[0])*t + np.random.normal(scale=noise, size=t.shape)
