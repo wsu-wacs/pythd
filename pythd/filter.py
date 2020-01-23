@@ -118,18 +118,26 @@ class ScikitLearnFilter(TrainableFilter):
         self.reset()
     
     def fit(self, arg):
-        self.filt = self.cls(*self.args, **self.kwargs)
-        self.filt.fit(arg)
-        self.is_fit = True
+        if not self.is_fit:
+            if self.has_transform:
+                self.filt.fit(arg)
+            self.is_fit = True
     
     def reset(self):
         self.filt = self.cls(*self.args, **self.kwargs)
+        transform_op = getattr(self, "transform", None)
+        self.has_transform = callable(transform_op)
         self.is_fit = False
         
     def get_values(self, arg):
         if not self.is_fit:
             self.fit(arg)
-        return filt.transform(arg)
+        if self.has_transform:
+            values = self.filt.transform(arg)
+        else:
+            values = self.filt.fit_transform(arg)
+
+        return values.astype(float) 
 
 class EccentricityFilter(TrainableFilter):
     """Filter function giving a single eccentricity value.
