@@ -41,6 +41,21 @@ class DatasetGenerator:
         self._add_data(np.array([x, y]).T)
         return self
     
+    def gaussian(self, center=[0.0, 0.0], sd=[1.0, 1.0], num_points=10):
+        """Add samples from a 2-D Gaussian
+        
+        Parameters
+        ----------
+        center : iterable
+            Mean of the Gaussian distribution
+        sd : iterable
+            Standard deviations of the Guassian along each axis
+        num_points : int
+            Number of points to sample
+        """
+        self._add_data(np.random.normal(loc=center, scale=sd, size=(num_points, 2)))
+        return self
+    
     def line(self, start=[0.0, 0.0], end=[1.0, 0.0], num_points=10, noise=0.0):
         """Add a line segment, with optional Gaussian noise
         
@@ -62,4 +77,26 @@ class DatasetGenerator:
         y = start[1] + (end[1] - start[1])*t + np.random.normal(scale=noise, size=t.shape)
         self._add_data(np.array([x, y]).T)
         return self
+    
+    def random_disk(self, center=[0.0, 0.0], min_radius=0.0, max_radius=1.0, num_points=10):
+        """A disk with points sampled uniformly
         
+        Parameters
+        ----------
+        center: iterable
+            The center of the disk
+        min_radius: float
+            The minimum radius of the disk. Set to 0 if you want a completely filled-in disk
+        max_radius: float
+            The maximum radius of the disk (exclusive)
+        num_points : int
+            Total number of points to be sampled in the disk
+        """
+        center = np.array(center)
+        r = np.random.uniform(low=min_radius, high=max_radius, size=num_points)
+        theta = np.random.uniform(low=0.0, high=2.0*np.pi, size=num_points)
+        
+        x = center[0] + r*np.cos(theta)
+        y = center[1] + r*np.sin(theta)
+        self._add_data(np.array([x, y]).T)
+        return self
