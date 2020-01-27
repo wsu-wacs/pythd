@@ -457,3 +457,44 @@ class SimplicialComplex(object):
                     if frozenset(simplex) <= frozenset(n_simplex):
                         cofaces = cofaces + self._get_node_children_simplices(n, n_simplex)
         return cofaces
+    
+    def get_connected_components(self):
+        """Get the connected components of the one skeleton.
+        
+        Returns
+        -------
+        list
+            A list of connected components in the complex.
+            Each connected component is a list of node ids for the nodes in the complex.
+        """
+        to_visit = set(self.simplex_tree.children.keys())
+        components = []
+        ones = self.get_k_simplices(k=1)
+
+        while to_visit:
+            # Get a node to visit
+            nid = to_visit.pop()
+            
+            # Visited nodes in this connected component
+            visited = set()
+            neighbors = set([nid])
+            
+            # Current set of points to visit in this component
+            while neighbors:
+                neighbor = neighbors.pop()
+                visited.add(neighbor)
+                
+                # Get all neighbors of this node
+                nns = set()
+                for a, b in ones:
+                    if a == neighbor:
+                        nns.add(b)
+                    elif b == neighbor:
+                        nns.add(a)
+                
+                neighbors = (neighbors | nns) - visited
+            
+            components.append(list(visited))
+            to_visit = to_visit - visited
+        
+        return components
