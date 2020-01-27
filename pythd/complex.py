@@ -6,6 +6,7 @@ By Kyle Brown <brown.718@wright.edu>
 import json
 import pickle
 import itertools
+import numpy as np
 
 from .utils import open_or_use
 
@@ -181,9 +182,24 @@ class SimplicialComplex(object):
         d = {
             "simplex": simplex,
             "data": node.data,
-            "dict": node.dict,
             "order": node.order
         }
+        
+        def _json_serialize(v):
+            if isinstance(v, (set, frozenset)):
+                v = list(v)
+            elif isinstance(v, (np.int8, np.int16, np.int32, np.int64)):
+                v = int(v)
+            elif isinstance(v, (np.float32, np.float64)):
+                v = float(v)
+
+            if isinstance(v, (list, tuple)):
+                v = list(map(_json_serialize, v))
+
+            return v
+
+        d["dict"] = {k: _json_serialize(v) for k, v in node.dict.items()}
+
         s = [d]
         for n in node.get_children().values():
             s = s + self._get_node_dict_repr(n, simplex + (n.id,))
