@@ -216,6 +216,9 @@ class SimplicialComplex(object):
         o["simplices"] = simplices
         return o
     
+    def get_dict(self):
+        return self._get_dict_repr()
+
     def save(self, fname=None, f=None, format="pickle"):
         """Save the simplicial complex.
         

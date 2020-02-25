@@ -156,8 +156,10 @@ class THDGroup:
         self.id = 0
         self.parent_id = 0
         self.dcs = {0: 1}
-        # Value used for coloring
-        self.value = len(self.rids) / self.dataset.shape[0]
+        self.parent = None
+        # Values used for coloring
+        self.density = len(self.rids) / self.dataset.shape[0]
+        self.network_size = len(self.network.get_k_simplices())
 
     def __iter__(self):
         self.iter_stack = [self]
@@ -184,11 +186,18 @@ class THDGroup:
         for group in self:
             group.value = (group.value - minval) / (maxval - minval)
 
+    def get_group_by_name(self, name):
+        for group in self:
+            if group.get_name() == name:
+                return group
+        return None
+
     def get_name(self):
         return "{}.{}.{}".format(self.depth, self.id, self.parent_id)
         
     def add_child(self, child):
         child.depth = self.depth + 1
+        child.parent = self
         child.parent_id = self.id
         child.dcs = self.dcs
         child.id = self.dcs.get(child.depth, 0)
@@ -226,5 +235,27 @@ class THDGroup:
 
     def color_network_size(self):
         for group in self:
-            group.value = len(group.network.get_k_simplices())
+            group.value = group.network_size
         self._normalize_values()
+    
+    def get_dict(self, include_network=True, **kwargs):
+        d = {
+            "name": self.get_name(),
+            "num_rows": len(self.rids),
+            "rids": list(self.rids),
+            "parent": self.parent.get_name() if self.parent else None,
+            "children": [child.get_name() for child in self.children],
+            "density": self.density,
+            "num_nodes": self.network_size,
+            "color": self.value,
+            "data_shape": list(self.dataset.shape)
+        }
+        
+        if include_network:
+            d["network"] = self.network.get_dict()
+        
+        return d
+    
+    def get_all_dicts(self, **kwargs):
+        d = {}
+        return {g: g.get_dict(**kwargs) for g in self}
