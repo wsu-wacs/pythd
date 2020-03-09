@@ -28,39 +28,72 @@ class THD:
                  group_threshold=100):
         self.dataset = pd.DataFrame(dataset)
         self.filter = filt
-        self.cover = cover
-        self.base_cover = copy.deepcopy(self.cover)
+        self.base_cover = copy.deepcopy(cover)
         self.clustering = clustering
         self.group_threshold = group_threshold
         self.reset()
         
     def reset(self):
+        """Reset the THD to be able to run it from the start."""
+        self.cover = copy.deepcopy(self.base_cover)
         self.root = THDJob(self.dataset, self.filter, self.cover,
                      rids=list(map(int, self.dataset.index.values)),
                      clustering=self.clustering,
                      group_threshold=self.group_threshold)
         self.jobs = [self.root]
+        self.is_run = False
 
     def run(self):
+        """Run the THD.
+        
+        Returns
+        -------
+        pythd.thd.THDGroup
+            The root group of the completed THD.
+        """
         while self.jobs:
             job = self.jobs.pop()
             job.run()
             self.jobs += job.child_jobs
+        self.is_run = True
+        return self.get_results()
     
     def get_results(self):
+        """Get the root group of the THD.
+        
+        Returns
+        -------
+        pythd.thd.THDGroup
+            The root group of the completed THD.
+        """
         return self.root.group
     
     def get_dict(self):
-        return {
+        """Get a dictionary representation of the THD configuration and results.
+        
+        The dictionary is suitable for JSON serialization."""
+        o =  {
             "data_shape": tuple(map(int, self.dataset.shape)),
             "filter_type": type(self.filter).__name__,
             "cover": self.base_cover.get_dict(),
             "clustering": self.clustering.get_dict(),
-            "group_threshold": self.group_threshold,
-            "groups": self.root.group.get_all_dicts()
+            "group_threshold": self.group_threshold
         }
+        if self.is_run:
+            o["groups"] = self.root.group.get_all_dicts()
+        return o
     
     def save_json(self, fname, **kwargs):
+        """Save the THD configuration and results to a JSON file.
+        
+        Parameters
+        ----------
+        fname : str
+            The name of the file to save to.
+        
+        **kwargs
+            Keyword arguments passed to the json.dump method.
+        """
         with open(fname, "w") as f:
             d = self.get_dict()
             json.dump(d, f, **kwargs)
@@ -179,6 +212,7 @@ class THDGroup:
         self.network_size = len(self.network.get_k_simplices())
 
     def __iter__(self):
+        """Iterator for this group and all its descendents"""
         self.iter_stack = [self]
         return self
     

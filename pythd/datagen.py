@@ -32,8 +32,10 @@ class DatasetGenerator:
             Standard deviation of optional gaussian noise to add to the points.
             Set to 0 to disable noise.
         """
-        delta = 2.0*np.pi / num_points
-        theta = np.linspace(0.0, 2.0*np.pi, num=num_points, endpoint=False)
+        return self.arc(center=center, radius=radius, min_angle=0.0, max_angle=2.0*np.pi, num_points=num_points, noise=noise)
+    
+    def arc(self, center=[0.0, 0.0], radius=1.0, min_angle=0.0, max_angle=np.pi, num_points=20, noise=0.0):
+        theta = np.linspace(min_angle, max_angle, num=num_points, endpoint=False)
         center = np.array(center)
         
         x = center[0] + radius*np.cos(theta) + np.random.normal(scale=noise, size=theta.shape)
@@ -72,7 +74,6 @@ class DatasetGenerator:
             Set to 0 to disable noise
         """
         t = np.linspace(0.0, 1.0, num=num_points, endpoint=True)
-        
         x = start[0] + (end[0] - start[0])*t + np.random.normal(scale=noise, size=t.shape)
         y = start[1] + (end[1] - start[1])*t + np.random.normal(scale=noise, size=t.shape)
         self._add_data(np.array([x, y]).T)

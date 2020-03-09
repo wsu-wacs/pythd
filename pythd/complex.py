@@ -8,6 +8,7 @@ import pickle
 import itertools
 import numpy as np
 
+from .mapper import create_igraph_network
 from .utils import open_or_use
 
 class SimplicialTreeNode(object):
@@ -501,3 +502,8 @@ class SimplicialComplex(object):
             to_visit = to_visit - visited
         
         return components
+    
+    def get_igraph_network(self):
+        nodes = self.get_k_simplices(k=0, include_data=True)
+        edges = self.get_k_simplices(k=1)
+        return create_igraph_network(nodes, edges)

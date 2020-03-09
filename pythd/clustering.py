@@ -125,6 +125,9 @@ class HierarchicalClustering(BaseClustering):
         return clusters 
 
     def get_dict(self):
+        """Get a dictionary representation of the clustering settings.
+        
+        The dictionary is suitable for JSON serialization."""
         return {
             "type": type(self).__name__,
             "method": self.method,

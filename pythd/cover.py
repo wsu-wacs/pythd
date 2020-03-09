@@ -355,6 +355,9 @@ class IntervalCover(BaseCover):
         return self.change_size(expand=False, amounts=amounts, proportions=proportions, do_copy=do_copy)
     
     def get_dict(self):
+        """Get a dictionary representation of the covering.
+        
+        The dictionary is suitable for JSON serialization."""
         return {
             "dimensions": {i : bins.get_dict() for i, bins in enumerate(self.bbins)},
             "num_dimensions": len(self.bbins),
