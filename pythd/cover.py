@@ -40,6 +40,7 @@ class _1DBins:
         self.num_intervals = len(bins)
         self.minv = bins[0][0]
         self.maxv = bins[-1][1]
+        self.overlap = 0.0
     
     def __repr__(self):
         return f"_1DBins({self.bins!r})"
@@ -58,6 +59,12 @@ class _1DBins:
         cls = self.__class__
         new_obj = cls(new_bins)
         return new_obj
+    
+    @classmethod
+    def FromDict(cls, d):
+        obj = cls(d["bins"])
+        obj.overlap = d["overlap"]
+        return obj
     
     @classmethod
     def EvenlySpaced(cls, num_intervals, minv, maxv, overlap):
@@ -91,7 +98,9 @@ class _1DBins:
             b = (max(c - eps, minv), min(c + eps, maxv))
             bins.append(b)
         
-        return cls(bins)
+        obj = cls(bins)
+        obj.overlap = overlap
+        return obj
     
     def change_size(self, expand=True, amount=None, proportion=0.1, do_copy=False):
         """Expand or shrink the size of each bin by a given amount
@@ -181,6 +190,15 @@ class _1DBins:
                 containing.append(i)
 
         return containing
+    
+    def get_dict(self):
+        return {
+            "minv": self.minv,
+            "maxv": self.maxv,
+            "num_intervals": self.num_intervals,
+            "overlap": self.overlap,
+            "bins": self.bins
+        }
         
 class IntervalCover1D(BaseCover):
     """A one-dimensional interval cover."""
@@ -213,6 +231,16 @@ class IntervalCover(BaseCover):
     """
     def __init__(self, bbins):
         self.bbins = bbins
+        self.minvs = []
+        self.maxvs = []
+        self.num_intervals = []
+        self.overlaps = []
+        
+        for bins in self.bbins:
+            self.minvs.append(bins.minv)
+            self.maxvs.append(bins.maxv)
+            self.num_intervals.append(bins.num_intervals)
+            self.overlaps.append(bins.overlap)
     
     def __copy__(self):
         cls = self.__class__
@@ -325,3 +353,14 @@ class IntervalCover(BaseCover):
         For parameters and return value, see change_size()
         """
         return self.change_size(expand=False, amounts=amounts, proportions=proportions, do_copy=do_copy)
+    
+    def get_dict(self):
+        return {
+            "dimensions": {i : bins.get_dict() for i, bins in enumerate(self.bbins)},
+            "num_dimensions": len(self.bbins),
+            "type": type(self).__name__,
+            "minvs": self.minvs,
+            "maxvs": self.maxvs,
+            "num_intervals": self.num_intervals,
+            "overlaps": self.overlaps
+        }

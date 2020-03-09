@@ -1,4 +1,5 @@
 import copy
+import json
 import pandas as pd
 
 from pythd.mapper import MAPPER
@@ -28,13 +29,14 @@ class THD:
         self.dataset = pd.DataFrame(dataset)
         self.filter = filt
         self.cover = cover
+        self.base_cover = copy.deepcopy(self.cover)
         self.clustering = clustering
         self.group_threshold = group_threshold
         self.reset()
         
     def reset(self):
         self.root = THDJob(self.dataset, self.filter, self.cover,
-                     rids=list(self.dataset.index.values),
+                     rids=list(map(int, self.dataset.index.values)),
                      clustering=self.clustering,
                      group_threshold=self.group_threshold)
         self.jobs = [self.root]
@@ -47,6 +49,21 @@ class THD:
     
     def get_results(self):
         return self.root.group
+    
+    def get_dict(self):
+        return {
+            "data_shape": tuple(map(int, self.dataset.shape)),
+            "filter_type": type(self.filter).__name__,
+            "cover": self.base_cover.get_dict(),
+            "clustering": self.clustering.get_dict(),
+            "group_threshold": self.group_threshold,
+            "groups": self.root.group.get_all_dicts()
+        }
+    
+    def save_json(self, fname, **kwargs):
+        with open(fname, "w") as f:
+            d = self.get_dict()
+            json.dump(d, f, **kwargs)
 
 class THDJob:
     """
@@ -148,7 +165,7 @@ class THDGroup:
     """
     def __init__(self, dataset, rids, network):
         self.dataset = dataset
-        self.rids = set(rids)
+        self.rids = set(map(int, rids))
         self.num_rows = len(self.rids)
         self.network = network
         self.children = []
@@ -258,4 +275,4 @@ class THDGroup:
     
     def get_all_dicts(self, **kwargs):
         d = {}
-        return {g: g.get_dict(**kwargs) for g in self}
+        return {g.get_name(): g.get_dict(**kwargs) for g in self}

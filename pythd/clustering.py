@@ -71,6 +71,8 @@ class HierarchicalClustering(BaseClustering):
         if not isinstance(metric, str):
             raise TypeError(f"Distance metric must be a string, not {type(metric)}")
         self.metric = metric
+        
+        self.cut_method = "first_gap"
     
     def cluster(self, points, cut_method="first_gap"):
         """Run the clustering and return the obtained clusters.
@@ -102,6 +104,7 @@ class HierarchicalClustering(BaseClustering):
         num_points = points.shape[0]
         
         # Method used in original MAPPER paper
+        self.cut_method = cut_method
         if cut_method == "first_gap":
             edge_dist = [a[2] for a in Z]
             histo_freq, bin_edges = np.histogram(edge_dist, bins="auto")
@@ -120,3 +123,10 @@ class HierarchicalClustering(BaseClustering):
             clusters.append(list(pic))
 
         return clusters 
+
+    def get_dict(self):
+        return {
+            "type": type(self).__name__,
+            "method": self.method,
+            "metric": self.metric
+        }
