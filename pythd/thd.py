@@ -37,7 +37,7 @@ class THD:
         """Reset the THD to be able to run it from the start."""
         self.cover = copy.deepcopy(self.base_cover)
         self.root = THDJob(self.dataset, self.filter, self.cover,
-                     rids=list(map(int, self.dataset.index.values)),
+                     rids=list(range(self.dataset.shape[0])),
                      clustering=self.clustering,
                      group_threshold=self.group_threshold)
         self.jobs = [self.root]
@@ -130,7 +130,7 @@ class THDJob:
         self.filt = filt
         self.cover = copy.deepcopy(cover)
         self.rids = rids
-        self.subset = self.dataset.loc[self.rids, :]
+        self.subset = self.dataset.iloc[self.rids, :]
         self.clustering = clustering
         self.group_threshold = group_threshold
         self.contract_amount = contract_amount
@@ -149,7 +149,7 @@ class THDJob:
         if self.is_run:
             self.reset()
         # MAPPER -> get topological network and connected components
-        self.result = self.mapper.run(self.subset.values, rids=list(self.subset.index.values))
+        self.result = self.mapper.run(self.subset.values, rids=self.rids)
         self.network = self.result.compute_k_skeleton(k=1)
         self.components = self.network.get_connected_components()
         
@@ -198,7 +198,8 @@ class THDGroup:
     """
     def __init__(self, dataset, rids, network):
         self.dataset = dataset
-        self.rids = set(map(int, rids))
+        self.rid_list = list(map(int, rids))
+        self.rids = set(self.rid_list)
         self.num_rows = len(self.rids)
         self.network = network
         self.children = []
@@ -245,7 +246,10 @@ class THDGroup:
 
     def get_name(self):
         return "{}.{}.{}".format(self.depth, self.id, self.parent_id)
-        
+    
+    def get_data(self):
+        return self.dataset.iloc[self.rid_list, :]
+
     def add_child(self, child):
         child.depth = self.depth + 1
         child.parent = self

@@ -8,8 +8,7 @@ import pickle
 import itertools
 import numpy as np
 
-from .mapper import create_igraph_network
-from .utils import open_or_use
+from .utils import open_or_use, create_igraph_network
 
 class SimplicialTreeNode(object):
     """

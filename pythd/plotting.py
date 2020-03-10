@@ -126,3 +126,13 @@ def draw_2_skeleton(complex, layout, node_coloring="density", node_radius=0.1):
     ax.set_xlim(min_x-2*node_radius, max_x+2*node_radius)
     ax.set_ylim(min_y-2*node_radius, max_y+2*node_radius)
     ax.set_aspect(1.0)
+
+def plot_2d_point_cloud(data, show=True, xlim=None, ylim=None):
+    fig, ax = plt.subplots()
+    ax.plot(data[:, 0], data[:, 1], ".")
+    if xlim:
+        ax.set_xlim(xlim)
+    if ylim:
+        ax.set_ylim(ylim)
+    if show:
+        plt.show()
