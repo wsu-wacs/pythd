@@ -210,6 +210,7 @@ class THDGroup:
         self.parent = None
         # Values used for coloring
         self.density = len(self.rids) / self.dataset.shape[0]
+        self.value = self.density
         self.network_size = len(self.network.get_k_simplices())
 
     def __iter__(self):
