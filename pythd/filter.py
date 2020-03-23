@@ -28,6 +28,9 @@ class BaseFilter(ABC):
         """
         pass
     
+    def reset(self):
+        pass 
+
     def __call__(self, arg):
         return self.get_values(arg)
 
