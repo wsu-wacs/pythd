@@ -175,12 +175,12 @@ class THDJob:
                 new_cover = self.cover
             
             for group in self.job_groups:
-                job = THDJob(self.dataset, self.filt, new_cover, rids=group,
-                             clustering=self.clustering,
-                             group_threshold=self.group_threshold,
-                             contract_amount=self.contract_amount,
-                             parent=self.group)
-                self.child_jobs.append(job)
+                    job = THDJob(self.dataset, self.filt, new_cover, rids=group,
+                                 clustering=self.clustering,
+                                 group_threshold=self.group_threshold,
+                                 contract_amount=self.contract_amount,
+                                 parent=self.group)
+                    self.child_jobs.append(job)
         self.is_run = True
 
 class THDGroup:
@@ -263,13 +263,13 @@ class THDGroup:
     
     def as_igraph_graph(self):
         import igraph
-        pal = igraph.drawing.colors.AdvancedGradientPalette(["red", "orange", "green", "blue"], n=128)
+        pal = igraph.drawing.colors.AdvancedGradientPalette(["blue", "orange", "green", "red"], n=128)
         
         g = igraph.Graph()
         for group in self:
             g.add_vertex(name=group.get_name(),
                          num_rows=self.num_rows,
-                         color=pal.get(round(group.value*127.0)))
+                         color=pal.get(int(round(group.value*127.0))))
 
         for group in self:
             for child in group.children:
@@ -286,6 +286,13 @@ class THDGroup:
         rids = set(rids)
         for group in self:
             group.value = len(rids & group.rids) / len(group.rids)
+        if normalize:
+            self._normalize_values()
+    
+    def color_by_value(self, values, normalize=False):
+        for group in self:
+            gvs = [values[rid] for rid in group.rids]
+            group.value = sum(gvs) / len(gvs)
         if normalize:
             self._normalize_values()
 

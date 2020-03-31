@@ -128,7 +128,7 @@ class ScikitLearnFilter(TrainableFilter):
     
     def reset(self):
         self.filt = self.cls(*self.args, **self.kwargs)
-        transform_op = getattr(self, "transform", None)
+        transform_op = getattr(self.filt, "transform", None)
         self.has_transform = callable(transform_op)
         self.is_fit = False
         
