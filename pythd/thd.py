@@ -25,11 +25,13 @@ class THD:
     """
     def __init__(self, dataset, filt, cover,
                  clustering=HierarchicalClustering(),
+                 contract_amount=0.1,
                  group_threshold=100):
         self.dataset = pd.DataFrame(dataset)
         self.filter = filt
         self.base_cover = copy.deepcopy(cover)
         self.clustering = clustering
+        self.contract_amount = contract_amount
         self.group_threshold = group_threshold
         self.reset()
         
@@ -39,11 +41,12 @@ class THD:
         self.root = THDJob(self.dataset, self.filter, self.cover,
                      rids=list(range(self.dataset.shape[0])),
                      clustering=self.clustering,
+                     contract_amount=self.contract_amount,
                      group_threshold=self.group_threshold)
         self.jobs = [self.root]
         self.is_run = False
 
-    def run(self):
+    def run(self, verbose=False):
         """Run the THD.
         
         Returns
@@ -51,9 +54,15 @@ class THD:
         pythd.thd.THDGroup
             The root group of the completed THD.
         """
+        def vprint(*args, **kwargs):
+            if verbose:
+                print(*args, **kwargs)
+
         while self.jobs:
+            vprint(len(self.jobs), "jobs remaining")
             job = self.jobs.pop()
-            job.run()
+            job.run(verbose=True)
+            vprint("Group {} finished ({} rids)".format(job.group.get_name(), len(job.group.rids)))
             self.jobs += job.child_jobs
         self.is_run = True
         return self.get_results()
@@ -145,7 +154,7 @@ class THDJob:
         self.job_groups = []
         self.is_run = False
     
-    def run(self):
+    def run(self, verbose=False):
         if self.is_run:
             self.reset()
         # MAPPER -> get topological network and connected components
