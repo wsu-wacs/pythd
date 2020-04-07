@@ -244,7 +244,6 @@ class THDGroup:
         for group in self:
             maxval = max(maxval, group.value)
             minval = min(minval, group.value)
-        print(minval, maxval)
         for group in self:
             group.value = (group.value - minval) / (maxval - minval)
 
