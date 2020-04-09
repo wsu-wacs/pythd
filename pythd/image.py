@@ -142,6 +142,39 @@ class ChippedImage:
         return self.df.loc[:, columns].values
     
     @classmethod
+    def FromGrayscale(cls, img, shape, stride=None):
+        shape = (shape, shape) if isinstance(shape, int) else shape
+        stride = shape if (stride is None) else stride
+        stride = (stride, stride) if isinstance(stride, int) else stride
+        cw, ch = shape
+        sx, sy = stride
+        h, w = img.shape[:2]
+        ncol = cw*ch + 2
+
+        maxx = w - cw
+        maxy = h - ch
+        nx = 1 + (maxx // sx)
+        ny = 1 + (maxy // sy)
+        nrow = nx * ny
+        chips = np.zeros((nrow, ncol))
+        row = 0
+        coord_columns = ["x", "y"]
+        pixel_columns = ["pixel {}".format(i+1) for i in range(ch*cw)]
+        
+        img = normalize_image(img)
+
+        for y in range(0, h-sy, sy):
+            for x in range(0, w-sx, sx):
+                chips[row, 2:] = img[y:(y+ch), x:(x+cw)].flatten()
+                chips[row, 0] = x
+                chips[row, 1] = y
+                row += 1
+                
+        chips = pd.DataFrame(chips, columns=(coord_columns + pixel_columns))
+        chips.astype({"x": "int32", "y": "int32"}, copy=False)
+        return cls(chips, shape, stride, coord_columns, pixel_columns)
+    
+    @classmethod
     def FromRGB(cls, img, shape, stride=None):
         """Chip an RGB image"""
         shape = (shape, shape) if isinstance(shape, int) else shape
