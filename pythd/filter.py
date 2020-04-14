@@ -101,6 +101,15 @@ class CombinedFilter(BaseFilter):
     def get_values(self, arg):
         return np.concatenate([f(arg) for f in self.filters], axis=1)
 
+class CompositeFilter(BaseFilter):
+    def __init__(self, *args):
+        self.filters = args
+    
+    def get_values(self, arg):
+        for f in self.filters:
+            arg = f(arg)
+        return arg
+
 class ScikitLearnFilter(TrainableFilter):
     """Filter functions used in scikit-learn
     
