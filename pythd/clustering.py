@@ -5,9 +5,49 @@ Original code by Xiu Huan Yap <yap.4@wright.edu>
 Rewritten and modified by Kyle Brown <brown.718@wright.edu>
 """
 from abc import ABC, abstractmethod
+import math
 
 import numpy as np
-from scipy.cluster.hierarchy import fcluster, linkage    
+import numba
+from scipy.cluster.hierarchy import fcluster, linkage
+
+@numba.jit(nopython=True, parallel=True, cache=True)
+def auto_num_bins(x):
+    """Reimplementation of numpy's automatic bin number algorithm"""
+    sturges = int(np.log2(x.size)) + 1
+    fd = 0
+
+    ps = np.percentile(x, [75, 25])
+    iqr = ps[1] - ps[0]
+    if iqr != 0.0:
+        ptp = x.max() - x.min()
+        h = 2.0 * iqr * (x.size ** (-1.0 / 3.0))
+        fd = int(ptp / h)
+    
+    return max(sturges, fd)
+
+@numba.jit(nopython=True, parallel=True, cache=True)
+def first_gap_cluster(Z, num_points):
+    edge_dist = np.array([a[2] for a in Z])
+    histo_freq, bin_edges = np.histogram(edge_dist, bins=auto_num_bins(edge_dist))
+    ids = np.where(histo_freq == 0)[0] # indices of empty bins
+
+    if ids.shape[0] > 0:
+        # Index of first empty bin
+        i = ids[0]
+        # Threshold distance is midpoint of this first empty bin
+        threshold = 0.5*(bin_edges[i] + bin_edges[i+1])
+        return (True, threshold)
+    else:
+        return (False, 0.0)
+
+@numba.jit(nopython=True, cache=True, parallel=True)
+def extract_clusters(cluster_memberships, num_points):
+    clusters = []
+    for c in np.unique(cluster_memberships):
+        pic = np.where(np.array([cluster_memberships[i] == c for i in range(num_points)]))[0]
+        clusters.append(list(pic))
+    return clusters
 
 class BaseClustering(ABC):
     """
@@ -106,23 +146,13 @@ class HierarchicalClustering(BaseClustering):
         # Method used in original MAPPER paper
         self.cut_method = cut_method
         if cut_method == "first_gap":
-            edge_dist = [a[2] for a in Z]
-            histo_freq, bin_edges = np.histogram(edge_dist, bins="auto")
-            try:
-                # Index of first empty bin
-                i = list(histo_freq).index(0)
-                # Threshold distance is midpoint of this first empty bin
-                threshold = 0.5*(bin_edges[i] + bin_edges[i+1])
-                cluster_memberships = list(fcluster(Z, threshold, criterion="distance"))
-            except:
+            res, val = first_gap_cluster(Z, num_points)
+            if res:
+                cluster_memberships = fcluster(Z, val, criterion="distance")
+                clusters = extract_clusters(cluster_memberships, num_points)
+                return clusters 
+            else:
                 return [list(range(num_points))]
-        
-        clusters = []
-        for c in np.unique(cluster_memberships):
-            pic = np.where([cluster_memberships[i] == c for i in range(num_points)])[0]
-            clusters.append(list(pic))
-
-        return clusters 
 
     def get_dict(self):
         """Get a dictionary representation of the clustering settings.
