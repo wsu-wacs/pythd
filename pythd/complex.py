@@ -7,8 +7,42 @@ import json
 import pickle
 import itertools
 import numpy as np
+from numba import jit
 
 from .utils import open_or_use, create_igraph_network
+
+#TODO: use typed sets if numba adds them
+@jit(nopython=True, cache=True)
+def _get_ccs_inner_loop(to_visit, ones):
+    components = []
+
+    while to_visit:
+        # Get a node to visit
+        nid = to_visit.pop()
+        
+        # Visited nodes in this connected component
+        visited = set()
+        neighbors = set([nid])
+        
+        # Current set of points to visit in this component
+        while neighbors:
+            neighbor = neighbors.pop()
+            visited.add(neighbor)
+            
+            # Get all neighbors of this node
+            nns = set()
+            for a, b in ones:
+                if a == neighbor:
+                    nns.add(b)
+                elif b == neighbor:
+                    nns.add(a)
+            
+            neighbors = (neighbors | nns) - visited
+        
+        components.append(list(visited))
+        to_visit = to_visit - visited
+    
+    return components
 
 class SimplicialTreeNode(object):
     """
@@ -471,35 +505,9 @@ class SimplicialComplex(object):
             Each connected component is a list of node ids for the nodes in the complex.
         """
         to_visit = set(self.simplex_tree.children.keys())
-        components = []
         ones = self.get_k_simplices(k=1)
 
-        while to_visit:
-            # Get a node to visit
-            nid = to_visit.pop()
-            
-            # Visited nodes in this connected component
-            visited = set()
-            neighbors = set([nid])
-            
-            # Current set of points to visit in this component
-            while neighbors:
-                neighbor = neighbors.pop()
-                visited.add(neighbor)
-                
-                # Get all neighbors of this node
-                nns = set()
-                for a, b in ones:
-                    if a == neighbor:
-                        nns.add(b)
-                    elif b == neighbor:
-                        nns.add(a)
-                
-                neighbors = (neighbors | nns) - visited
-            
-            components.append(list(visited))
-            to_visit = to_visit - visited
-        
+        components = _get_ccs_inner_loop(to_visit, ones)
         return components
     
     def get_igraph_network(self):

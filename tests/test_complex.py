@@ -13,9 +13,13 @@ def all_simplices(simplices):
 class TestSimplicialComplex(unittest.TestCase):
     def setUp(self):
         self.complex = SimplicialComplex()
+        self.complex2 = SimplicialComplex()
+        self.simplices2 = [(1,2,3), (1,2), (2,3), (4,5), (5,6), (7,8), (9,10), (7,10)]
         self.simplices = [(1,2,3), (1,4), (2,4)]
         for simplex in self.simplices:
             self.complex.add_simplex(simplex, data=simplex)
+        for simplex in self.simplices2:
+            self.complex2.add_simplex(simplex, data=simplex)
     
     def tearDown(self):
         if os.path.exists("temp.pickle"):
@@ -66,3 +70,14 @@ class TestSimplicialComplex(unittest.TestCase):
         complex = SimplicialComplex.load_json(fname="temp.json")
         for k in range(1, 4):
             self.assertEqual(complex.get_k_simplices(k=k), self.complex.get_k_simplices(k=k))
+
+    def test_components(self):
+        ccs = self.complex.get_connected_components()
+        self.assertEqual(len(ccs), 1)
+        self.assertEqual(ccs[0], [1,2,3,4])
+        
+        ccs = self.complex2.get_connected_components()
+        self.assertEqual(len(ccs), 3)
+        self.assertIn([1,2,3], ccs)
+        self.assertIn([4,5,6], ccs)
+        self.assertIn([7,8,9,10], ccs)
