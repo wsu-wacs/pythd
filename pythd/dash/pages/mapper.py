@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
 from sklearn.manifold import TSNE
@@ -6,12 +8,12 @@ import dash
 import dash_core_components as dcc
 import dash_html_components as html
 import dash_cytoscape as cyto
-from dash.dependencies import Input, Output, State
+from dash.dependencies import Input, Output, State, ClientsideFunction
 
 from ..app import app
 
 def make_filter_params():
-    return html.Div([
+    return html.Div(id='filter-params-div', children=[
         html.Div(id='tsne-params-div', children=[
             html.Span('Num. components: '),
             dcc.Input(id='tsne-components-input',
@@ -32,10 +34,18 @@ def make_filter_params():
 
 layout = html.Div([
     # Main content div
-    html.Div(style=dict(display='grid', gridTemplateColumns='25% auto'), 
+    html.Div(style=dict(display='grid', gridTemplateColumns='20% auto'), 
              children=[
         # Left bar
         html.Div(style=dict(), children=[
+            # Dataset settings
+            html.H4('Data'),
+            dcc.Upload(id='mapper-upload',
+                children=html.Div([
+                    html.Div(id='mapper-upload-div', children='Drop a file here or click to select file.'),
+                    html.Button('Select file...', id='mapper-upload-button', n_clicks=0)
+            ])),
+            html.Hr(),
             # Filter settings
             html.H4('Filter'),
             dcc.Dropdown(id='filter-dropdown',
@@ -77,7 +87,8 @@ layout = html.Div([
                 style=dict(width='100%', height='100%'),
                 elements=[])
         ])
-    ])
+    ]),
+    html.Div(id='bit-bucket-1', style=dict(display='none'))
 ])
 
 def make_filter_settings_div(filter_name):
@@ -86,5 +97,29 @@ def make_filter_settings_div(filter_name):
         r = [html.Span('Component List: '),
              dcc.Input(id='filter-component-input')]
     return html.Div(children=r)
+
+app.clientside_callback(
+        ClientsideFunction(
+            namespace='clientside',
+            function_name='selectFilter'),
+        Output('bit-bucket-1', 'children'),
+        [Input('filter-dropdown', 'value')]
+)
+
+@app.callback(Output('mapper-upload-div', 'children'),
+              [Input('mapper-upload', 'contents')],
+              [State('mapper-upload', 'filename')])
+def on_mapper_upload_change(contents, filename):
+    ctx = dash.callback_context
+    if not ctx.triggered:
+        return dash.no_update
+
+    p = Path(filename)
+    if p.suffix == '.zip':
+        pass # zip file
+    elif p.suffix == '.csv':
+        pass # csv file
+
+    return 'Uploaded file: ' + filename
 
 
