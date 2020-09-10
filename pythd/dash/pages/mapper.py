@@ -12,9 +12,12 @@ import dash_cytoscape as cyto
 from dash.dependencies import Input, Output, State, ClientsideFunction
 
 from ..app import app
+from ..common import networkx_network_to_cytoscape_elements
 from ...filter import IdentityFilter, ComponentFilter, ScikitLearnFilter
 from ...cover import IntervalCover
 from ...clustering import HierarchicalClustering 
+from ...mapper import MAPPER
+
 ################################################################################
 # Layout
 ################################################################################
@@ -40,7 +43,9 @@ def make_filter_params():
 
 layout = html.Div([
     # Main content div
-    html.Div(style=dict(display='grid', gridTemplateColumns='20% auto'), 
+    html.Div(style=dict(display='grid', 
+                        gridTemplateColumns='20% auto',
+                        gridTemplateRows='100%'), 
              children=[
         # Left bar
         html.Div(style=dict(), children=[
@@ -97,7 +102,32 @@ layout = html.Div([
                     {'label': 'Median', 'value': 'median'},
                     {'label': 'Ward', 'value': 'ward'}
                 ]),
+            dcc.Dropdown(id='cluster-metric-dropdown',
+                searchable=False,
+                value='euclidean',
+                options=[
+                    {'label': 'Euclidean', 'value': 'euclidean'},
+                    {'label': 'Manhattan', 'value': 'manhattan'},
+                    {'label': 'Standardized Euclidean', 'value': 'seuclidean'},
+                    {'label': 'Cosine', 'value': 'cosine'},
+                    {'label': 'Correlation', 'value': 'correlation'},
+                    {'label': 'Chebyshev', 'value': 'chebyshev'}
+                ]),
             html.Hr(),
+            # Network layout
+            html.H4('Network View'),
+            html.Span('Layout Algorithm: '),
+            dcc.Dropdown(id='layout-method-dropdown',
+                value='cose',
+                options=[
+                    {'label': 'COSE', 'value': 'cose'}
+                ]),
+            html.Span('Node Coloring: '),
+            dcc.Dropdown(id='network-coloring-dropdown',
+                value='density',
+                options=[
+                    {'label': 'Point Density', 'value': 'density'}
+                ]),
             # Other settings
             html.Button('Run MAPPER', id='mapper-button', n_clicks=0)
         ]),
@@ -105,7 +135,7 @@ layout = html.Div([
         # Network view
         html.Div(style=dict(), children=[
             cyto.Cytoscape(id='mapper-graph',
-                layout=dict(name='preset'),
+                layout=dict(name='cose'),
                 style=dict(width='100%', height='100%'),
                 elements=[])
         ])
@@ -130,10 +160,10 @@ def contents_to_dataframe(contents):
             df = pd.read_csv(f, header=0, index_col=0)
     return df
 
-def get_filter(name, *args):
+def get_filter(name, metric, *args):
     if name == 'tsne':
         n_components = int(args[0])
-        return ScikitLearnFilter(TSNE, n_components=n_components)
+        return ScikitLearnFilter(TSNE, n_components=n_components, metric=metric)
 ################################################################################
 # Callbacks
 ################################################################################
@@ -155,6 +185,19 @@ def on_mapper_upload_change(contents, filename):
     
     return 'Uploaded file: ' + filename
 
+@app.callback(Output('mapper-graph', 'stylesheet'),
+             [Input('network-coloring-dropdown', 'value')])
+def on_network_coloring_change(coloring):
+    stylesheet = []
+    if coloring == 'density':
+        stylesheet.append({
+            'selector': 'node',
+            'style': {
+                'background-color': 'mapData(npoints, 0, 1 blue, red)'
+            }
+        })
+    return stylesheet
+
 @app.callback(Output('mapper-graph', 'elements'),
              [Input('mapper-button', 'n_clicks')],
              [State('mapper-upload', 'contents'),
@@ -162,6 +205,9 @@ def on_mapper_upload_change(contents, filename):
               # Cover parameters
               State('cover-interval-input', 'value'),
               State('cover-overlap-input', 'value'),
+              # Clustering Parameters
+              State('cluster-method-dropdown', 'value'),
+              State('cluster-metric-dropdown', 'value'),
               # Filter-specific parameters
               # tSNE parameters
               State('tsne-components-input', 'value'),
@@ -170,6 +216,7 @@ def on_mapper_upload_change(contents, filename):
 ])
 def on_run_mapper_click(n_clicks, contents, filter_name, 
                         num_intervals, overlap,
+                        clust_method, metric,
                         *args):
     ctx = dash.callback_context
     if (not ctx.triggered) or (not contents):
@@ -178,8 +225,13 @@ def on_run_mapper_click(n_clicks, contents, filter_name,
     elements = []
 
     df = contents_to_dataframe(contents)
-    filt = get_filter(filter_name, *args)
+    filt = get_filter(filter_name, metric, *args)
     f_x = filt(df.values)
     cover = IntervalCover.EvenlySpacedFromValues(f_x, int(num_intervals), float(overlap) / 100)
-    print(cover)
+    clust = HierarchicalClustering(method=clust_method, metric=metric)
+    mapper = MAPPER(filter=filt, cover=cover, clustering=clust)
+    result = mapper.run(df.values, f_x=f_x)
+    network = result.get_networkx_network()
+    elements = networkx_network_to_cytoscape_elements(network, nrows=df.shape[0])
+
     return elements
