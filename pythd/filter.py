@@ -11,6 +11,9 @@ from abc import ABC, abstractmethod
 import numpy as np
 import scipy as sp
 
+__all__ = ["BaseFilter", "IdentityFilter", "ComponentFilter", "ScikitLearnFilter", "EccentricityFilter", 
+           "CompositeFilter", "CombinedFilter"]
+
 class BaseFilter(ABC):
     @abstractmethod
     def get_values(self, arg):

@@ -1,9 +1,10 @@
 from pathlib import Path
-import base64, io
+import base64, io, json
 
 import numpy as np
 import pandas as pd
 from sklearn.manifold import TSNE
+from sklearn.decomposition import PCA
 
 import dash
 import dash_core_components as dcc
@@ -13,10 +14,22 @@ from dash.dependencies import Input, Output, State, ClientsideFunction
 
 from ..app import app
 from ..common import networkx_network_to_cytoscape_elements
-from ...filter import IdentityFilter, ComponentFilter, ScikitLearnFilter
+from ...filter import *
 from ...cover import IntervalCover
 from ...clustering import HierarchicalClustering 
 from ...mapper import MAPPER
+
+################################################################################
+# Constants & Variables
+################################################################################
+colorings = {
+    'density': {
+        'selector': 'node',
+        'style': {
+            'background-color': 'mapData(npoints, 0, 1, blue, red)'
+        }
+    }
+}
 
 ################################################################################
 # Layout
@@ -31,6 +44,14 @@ def make_filter_params():
                       min=1,
                       value=2)
         ], style=dict(display='none')),
+        html.Div(id='pca-params-div', children=[
+            html.Span('Num. components: '),
+            dcc.Input(id='pca-components-input',
+                      debounce=True,
+                      inputMode='numeric',
+                      min=1,
+                      value=2)
+        ]),
         html.Div(id='identity-params-div', children=[
         ], style=dict(display='none')),
         html.Div(id='component-params-div', children=[
@@ -38,8 +59,24 @@ def make_filter_params():
              dcc.Input(id='filter-component-input')
         ], style=dict(display='none')),
         html.Div(id='eccentricity-params-div', children=[
+            html.Span('Method: '),
+            dcc.Dropdown(id='eccentricity-method-dropdown',
+                searchable=False,
+                value='mean',
+                options=[
+                    {'label': 'Mean', 'value': 'mean'},
+                    {'label': 'Medoid', 'value': 'medoid'}
+                ]),
         ], style=dict(display='none'))
     ])
+
+def make_column_dropdown(columns, name='column-dropdown'):
+    return dcc.Dropdown(id=name,
+                        searchable=False,
+                        value=columns[0],
+                        options=[
+                            {'label': col, 'value': col}
+                            for col in columns])
 
 layout = html.Div([
     # Main content div
@@ -64,6 +101,7 @@ layout = html.Div([
                 value='tsne',
                 options=[
                     {'label': 'tSNE', 'value': 'tsne'},
+                    {'label': 'PCA', 'value': 'pca'},
                     {'label': 'Identity', 'value': 'identity'},
                     {'label': 'Component', 'value': 'component'},
                     {'label': 'Eccentricity', 'value': 'eccentricity'}
@@ -102,6 +140,7 @@ layout = html.Div([
                     {'label': 'Median', 'value': 'median'},
                     {'label': 'Ward', 'value': 'ward'}
                 ]),
+            html.Span('Metric: '),
             dcc.Dropdown(id='cluster-metric-dropdown',
                 searchable=False,
                 value='euclidean',
@@ -114,7 +153,7 @@ layout = html.Div([
                     {'label': 'Chebyshev', 'value': 'chebyshev'}
                 ]),
             html.Hr(),
-            # Network layout
+            # Network layout and coloring
             html.H4('Network View'),
             html.Span('Layout Algorithm: '),
             dcc.Dropdown(id='layout-method-dropdown',
@@ -126,8 +165,13 @@ layout = html.Div([
             dcc.Dropdown(id='network-coloring-dropdown',
                 value='density',
                 options=[
-                    {'label': 'Point Density', 'value': 'density'}
+                    {'label': 'Point Density', 'value': 'density'},
+                    {'label': 'Column', 'value': 'column'}
                 ]),
+            html.Div(id='network-coloring-params-div', style=dict(display='none'), children=[
+                html.Span('Column: '),
+                dcc.Dropdown(id='coloring-column-dropdown', options=[])
+            ]),
             # Other settings
             html.Button('Run MAPPER', id='mapper-button', n_clicks=0)
         ]),
@@ -137,10 +181,14 @@ layout = html.Div([
             cyto.Cytoscape(id='mapper-graph',
                 layout=dict(name='cose'),
                 style=dict(width='100%', height='100%'),
+                stylesheet=[colorings['density']],
                 elements=[])
         ])
     ]),
-    html.Div(id='bit-bucket-1', style=dict(display='none'))
+    # Hidden divs for callback outputs
+    html.Div(id='bit-bucket-1', style=dict(display='none')),
+    # Hidden divs to store information
+    html.Div(id='columns-store', style=dict(display='none'), children=json.dumps([]))
 ])
 
 ################################################################################
@@ -164,6 +212,18 @@ def get_filter(name, metric, *args):
     if name == 'tsne':
         n_components = int(args[0])
         return ScikitLearnFilter(TSNE, n_components=n_components, metric=metric)
+    elif name == 'pca':
+        n_components = int(args[1])
+        return ScikitLearnFilter(PCA, n_components=n_components)
+    elif name == 'identity':
+        return IdentityFilter()
+    elif name == 'component':
+        components = args[2]
+        return ComponentFilter(components)
+    elif name == 'eccentricity':
+        method = args[3]
+        return EccentricityFilter(metric=metric, method=method)
+
 ################################################################################
 # Callbacks
 ################################################################################
@@ -175,28 +235,44 @@ app.clientside_callback(
         [Input('filter-dropdown', 'value')]
 )
 
-@app.callback(Output('mapper-upload-div', 'children'),
+@app.callback([Output('mapper-upload-div', 'children'),
+               Output('coloring-column-dropdown', 'options'),
+               Output('coloring-column-dropdown', 'value')],
               [Input('mapper-upload', 'contents')],
               [State('mapper-upload', 'filename')])
 def on_mapper_upload_change(contents, filename):
     ctx = dash.callback_context
     if not ctx.triggered:
-        return dash.no_update
+        return (dash.no_update,)*3
     
-    return 'Uploaded file: ' + filename
+    display = 'Uploaded file: {}'.format(filename)
+    df = contents_to_dataframe(contents)
+    columns = [{'label': col, 'value': col} for col in df.columns]
+    return display, columns, columns[0]['value']
 
-@app.callback(Output('mapper-graph', 'stylesheet'),
-             [Input('network-coloring-dropdown', 'value')])
-def on_network_coloring_change(coloring):
-    stylesheet = []
+@app.callback([Output('mapper-graph', 'stylesheet'),
+               Output('network-coloring-params-div', 'style')],
+              [Input('network-coloring-dropdown', 'value'),
+               Input('coloring-column-dropdown', 'value')],
+              [State('mapper-graph', 'stylesheet')])
+def on_network_coloring_change(coloring, column, stylesheet):
+    ctx = dash.callback_context
+    if not ctx.triggered:
+        return dash.no_update, dash.no_update
+
+    div = []
+    hide_show = dict(display='none')
     if coloring == 'density':
+        stylesheet = []
         stylesheet.append({
             'selector': 'node',
             'style': {
                 'background-color': 'mapData(npoints, 0, 1 blue, red)'
             }
         })
-    return stylesheet
+    elif coloring == 'column':
+        hide_show = dict(display='initial')
+    return stylesheet, hide_show
 
 @app.callback(Output('mapper-graph', 'elements'),
              [Input('mapper-button', 'n_clicks')],
@@ -211,8 +287,12 @@ def on_network_coloring_change(coloring):
               # Filter-specific parameters
               # tSNE parameters
               State('tsne-components-input', 'value'),
+              # PCA parameters
+              State('pca-components-input', 'value'),
               # Component filter parameters
               State('filter-component-input', 'value'),
+              # Eccentricity parameters
+              State('eccentricity-method-dropdown', 'value')
 ])
 def on_run_mapper_click(n_clicks, contents, filter_name, 
                         num_intervals, overlap,
