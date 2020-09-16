@@ -13,7 +13,7 @@ import dash_cytoscape as cyto
 from dash.dependencies import Input, Output, State, ClientsideFunction
 
 from ..app import app
-from ..common import networkx_network_to_cytoscape_elements
+from ..common import *
 from ...filter import *
 from ...cover import IntervalCover
 from ...clustering import HierarchicalClustering 
@@ -26,7 +26,7 @@ colorings = {
     'density': {
         'selector': 'node',
         'style': {
-            'background-color': 'mapData(npoints, 0, 1, blue, red)'
+            'background-color': 'mapData(density, 0, 1, blue, red)'
         }
     }
 }
@@ -76,7 +76,7 @@ def make_column_dropdown(columns, name='column-dropdown'):
                         value=columns[0],
                         options=[
                             {'label': col, 'value': col}
-                            for col in columns])
+                            for col in columns.keys()])
 
 layout = html.Div([
     # Main content div
@@ -188,26 +188,12 @@ layout = html.Div([
     # Hidden divs for callback outputs
     html.Div(id='bit-bucket-1', style=dict(display='none')),
     # Hidden divs to store information
-    html.Div(id='columns-store', style=dict(display='none'), children=json.dumps([]))
+    html.Div(id='columns-store', style=dict(display='none'), children=json.dumps({}))
 ])
 
 ################################################################################
 # Functions
 ################################################################################
-def contents_to_dataframe(contents):
-    contents = contents.split(',')
-    content_type = contents[0].split(';')
-    contents = contents[1]
-    contents = base64.b64decode(contents, validate=True)
-
-    if 'zip' in content_type:
-        with io.BytesIO(contents) as f:
-            df = pd.read_csv(f, header=0, index_col=0, compression='zip')
-    else:
-        with io.StringIO(contents.decode('utf-8')) as f:
-            df = pd.read_csv(f, header=0, index_col=0)
-    return df
-
 def get_filter(name, metric, *args):
     if name == 'tsne':
         n_components = int(args[0])
@@ -227,6 +213,8 @@ def get_filter(name, metric, *args):
 ################################################################################
 # Callbacks
 ################################################################################
+
+# JavaScript callback to hide/show extra parameters for specific filters
 app.clientside_callback(
         ClientsideFunction(
             namespace='clientside',
@@ -254,8 +242,9 @@ def on_mapper_upload_change(contents, filename):
                Output('network-coloring-params-div', 'style')],
               [Input('network-coloring-dropdown', 'value'),
                Input('coloring-column-dropdown', 'value')],
-              [State('mapper-graph', 'stylesheet')])
-def on_network_coloring_change(coloring, column, stylesheet):
+              [State('mapper-graph', 'stylesheet'),
+               State('columns-store', 'children')])
+def on_network_coloring_change(coloring, column, stylesheet, columns):
     ctx = dash.callback_context
     if not ctx.triggered:
         return dash.no_update, dash.no_update
@@ -264,17 +253,23 @@ def on_network_coloring_change(coloring, column, stylesheet):
     hide_show = dict(display='none')
     if coloring == 'density':
         stylesheet = []
-        stylesheet.append({
-            'selector': 'node',
-            'style': {
-                'background-color': 'mapData(npoints, 0, 1 blue, red)'
-            }
-        })
+        stylesheet.append(colorings['density'])
     elif coloring == 'column':
         hide_show = dict(display='initial')
+        if columns:
+            columns = json.loads(columns)
+            minv, maxv = columns[column]
+            stylesheet = []
+            stylesheet.append({
+                'selector': 'node',
+                'style': {
+                    'background-color': 'mapData({}, {}, {}, blue, red)'.format(column, minv, maxv)
+                }
+            })
     return stylesheet, hide_show
 
-@app.callback(Output('mapper-graph', 'elements'),
+@app.callback([Output('mapper-graph', 'elements'),
+               Output('columns-store', 'children')],
              [Input('mapper-button', 'n_clicks')],
              [State('mapper-upload', 'contents'),
               State('filter-dropdown', 'value'),
@@ -300,7 +295,7 @@ def on_run_mapper_click(n_clicks, contents, filter_name,
                         *args):
     ctx = dash.callback_context
     if (not ctx.triggered) or (not contents):
-        return dash.no_update
+        return (dash.no_update,) * 2
     
     elements = []
 
@@ -312,6 +307,11 @@ def on_run_mapper_click(n_clicks, contents, filter_name,
     mapper = MAPPER(filter=filt, cover=cover, clustering=clust)
     result = mapper.run(df.values, f_x=f_x)
     network = result.get_networkx_network()
-    elements = networkx_network_to_cytoscape_elements(network, nrows=df.shape[0])
+    elements = networkx_network_to_cytoscape_elements(network, df)
 
-    return elements
+    columns = {}
+    for col in df.columns:
+        vals = [d['data'][col] for d in elements if 'id' in d['data']]
+        columns[col] = (min(vals), max(vals))
+
+    return elements, json.dumps(columns)
