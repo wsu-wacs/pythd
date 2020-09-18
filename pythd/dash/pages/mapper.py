@@ -78,14 +78,14 @@ def make_column_dropdown(columns, name='column-dropdown'):
                             {'label': col, 'value': col}
                             for col in columns.keys()])
 
-layout = html.Div([
+layout = html.Div(style=dict(height='100%'), children=[
     # Main content div
     html.Div(style=dict(display='grid', 
                         gridTemplateColumns='20% auto',
-                        gridTemplateRows='100%'), 
+                        height='100%'), 
              children=[
         # Left bar
-        html.Div(style=dict(), children=[
+        html.Div(style=dict(gridColumn='1 / 2', borderRightStyle="solid"), children=[
             # Dataset settings
             html.H4('Data'),
             dcc.Upload(id='mapper-upload',
@@ -177,7 +177,12 @@ layout = html.Div([
         ]),
 
         # Network view
-        html.Div(style=dict(), children=[
+        html.Div(style=dict(gridColumn='2 / 3', paddingLeft='5px', paddingBottom='10px'), children=[
+            html.Div(style=dict(borderBottomStyle='solid'), children=[
+                html.Span(id='data-info-span', children='No file loaded.'),
+                html.Span(id='network-info-span', style=dict(float='right'), children=[]),
+                html.Span(id='color-info-span', style=dict(float='right'), children=[])
+            ]),
             cyto.Cytoscape(id='mapper-graph',
                 layout=dict(name='cose'),
                 style=dict(width='100%', height='100%'),
@@ -225,21 +230,24 @@ app.clientside_callback(
 
 @app.callback([Output('mapper-upload-div', 'children'),
                Output('coloring-column-dropdown', 'options'),
-               Output('coloring-column-dropdown', 'value')],
+               Output('coloring-column-dropdown', 'value'),
+               Output('data-info-span', 'children')],
               [Input('mapper-upload', 'contents')],
               [State('mapper-upload', 'filename')])
 def on_mapper_upload_change(contents, filename):
     ctx = dash.callback_context
     if not ctx.triggered:
-        return (dash.no_update,)*3
+        return (dash.no_update,)*4
     
     display = 'Uploaded file: {}'.format(filename)
     df = contents_to_dataframe(contents)
+    info = '{}; {} rows, {} columns'.format(Path(filename).name, df.shape[0], df.shape[1])
     columns = [{'label': col, 'value': col} for col in df.columns]
-    return display, columns, columns[0]['value']
+    return display, columns, columns[0]['value'], info
 
 @app.callback([Output('mapper-graph', 'stylesheet'),
-               Output('network-coloring-params-div', 'style')],
+               Output('network-coloring-params-div', 'style'),
+               Output('color-info-span', 'children')],
               [Input('network-coloring-dropdown', 'value'),
                Input('coloring-column-dropdown', 'value')],
               [State('mapper-graph', 'stylesheet'),
@@ -247,13 +255,16 @@ def on_mapper_upload_change(contents, filename):
 def on_network_coloring_change(coloring, column, stylesheet, columns):
     ctx = dash.callback_context
     if not ctx.triggered:
-        return dash.no_update, dash.no_update
+        return (dash.no_update,)*3
 
     div = []
+    info = ''
     hide_show = dict(display='none')
+
     if coloring == 'density':
         stylesheet = []
         stylesheet.append(colorings['density'])
+        info = 'density coloring'
     elif coloring == 'column':
         hide_show = dict(display='initial')
         if columns:
@@ -266,10 +277,12 @@ def on_network_coloring_change(coloring, column, stylesheet, columns):
                     'background-color': 'mapData({}, {}, {}, blue, red)'.format(column, minv, maxv)
                 }
             })
-    return stylesheet, hide_show
+            info = '{} ({:.2f}, {:.2f}); '.format(column, minv, maxv)
+    return stylesheet, hide_show, info
 
 @app.callback([Output('mapper-graph', 'elements'),
-               Output('columns-store', 'children')],
+               Output('columns-store', 'children'),
+               Output('network-info-span', 'children')],
              [Input('mapper-button', 'n_clicks')],
              [State('mapper-upload', 'contents'),
               State('filter-dropdown', 'value'),
@@ -295,7 +308,7 @@ def on_run_mapper_click(n_clicks, contents, filter_name,
                         *args):
     ctx = dash.callback_context
     if (not ctx.triggered) or (not contents):
-        return (dash.no_update,) * 2
+        return (dash.no_update,) * 3
     
     elements = []
 
@@ -314,4 +327,6 @@ def on_run_mapper_click(n_clicks, contents, filter_name,
         vals = [d['data'][col] for d in elements if 'id' in d['data']]
         columns[col] = (min(vals), max(vals))
 
-    return elements, json.dumps(columns)
+    info = '{} nodes, {} edges'.format(len(network.nodes), len(network.edges))
+
+    return elements, json.dumps(columns), info

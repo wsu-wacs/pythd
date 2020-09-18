@@ -65,7 +65,7 @@ def contents_to_dataframe(contents):
     contents = contents[1]
     contents = base64.b64decode(contents, validate=True)
 
-    if 'zip' in content_type:
+    if 'zip' in content_type[0]:
         with io.BytesIO(contents) as f:
             df = pd.read_csv(f, header=0, index_col=0, compression='zip')
     else:
