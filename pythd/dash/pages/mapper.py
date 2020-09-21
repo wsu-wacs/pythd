@@ -82,10 +82,11 @@ layout = html.Div(style=dict(height='100%'), children=[
     # Main content div
     html.Div(style=dict(display='grid', 
                         gridTemplateColumns='20% auto',
+                        gridTemplateRows='80% auto',
                         height='100%'), 
              children=[
         # Left bar
-        html.Div(style=dict(gridColumn='1 / 2', borderRightStyle="solid"), children=[
+        html.Div(style=dict(gridColumn='1 / 2', gridRow='1 / 3', borderRightStyle="solid"), children=[
             # Dataset settings
             html.H4('Data'),
             dcc.Upload(id='mapper-upload',
@@ -177,7 +178,8 @@ layout = html.Div(style=dict(height='100%'), children=[
         ]),
 
         # Network view
-        html.Div(style=dict(gridColumn='2 / 3', paddingLeft='5px', paddingBottom='10px'), children=[
+        html.Div(style=dict(gridColumn='2 / 3', gridRow='1 / 2', paddingLeft='5px', paddingBottom='10px'), 
+                 children=[
             html.Div(style=dict(borderBottomStyle='solid'), children=[
                 html.Span(id='data-info-span', children='No file loaded.'),
                 html.Span(id='network-info-span', style=dict(float='right'), children=[]),
@@ -188,6 +190,13 @@ layout = html.Div(style=dict(height='100%'), children=[
                 style=dict(width='100%', height='100%'),
                 stylesheet=[colorings['density']],
                 elements=[])
+        ]),
+
+        # Node information
+        html.Div(style=dict(gridColumn='2 / 3', gridRow='2 / 3', borderTopStyle='solid', 
+                            overflowY='scroll'), children=[
+            html.H3('Node Selection'),
+            html.Div(id='node-selection-div', children=[])
         ])
     ]),
     # Hidden divs for callback outputs
@@ -330,3 +339,27 @@ def on_run_mapper_click(n_clicks, contents, filter_name,
     info = '{} nodes, {} edges'.format(len(network.nodes), len(network.edges))
 
     return elements, json.dumps(columns), info
+
+@app.callback(
+        Output('node-selection-div', 'children'),
+        [Input('mapper-graph', 'tapNodeData')])
+def on_network_action(tapNodeData):
+    ctx = dash.callback_context
+    if not ctx.triggered:
+        return dash.no_update
+
+    print(tapNodeData)
+
+    keys = frozenset(['id', 'npoints', 'density'])
+    keys = frozenset(tapNodeData.keys()) - keys
+
+    selDiv = [
+        html.Span("Number of Points: {}".format(tapNodeData['npoints'])),
+        html.Div(children=[
+            html.Div([
+                html.B('Average {}: '.format(k)),
+                html.Span('{:.2f}'.format(float(tapNodeData[k])))
+            ]) for k in keys])]
+
+    return selDiv
+
