@@ -1,4 +1,8 @@
+"""
+Common functionality for all MAPPER dashboards
+"""
 import io, base64
+
 import pandas as pd
 
 __all__ = ['networkx_network_to_cytoscape_elements', 'contents_to_dataframe']
@@ -72,3 +76,4 @@ def contents_to_dataframe(contents):
         with io.StringIO(contents.decode('utf-8')) as f:
             df = pd.read_csv(f, header=0, index_col=0)
     return df
+

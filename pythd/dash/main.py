@@ -6,6 +6,7 @@ from dash.dependencies import Input, Output, State
 from .app import app
 
 from .pages import mapper as page_mapper
+from .pages import thd as page_thd
 
 app.layout = html.Div([
     dcc.Location(id='url', refresh=False),
@@ -13,6 +14,8 @@ app.layout = html.Div([
     dcc.Link('home', href='/'),
     html.Span(' ] [ '),
     dcc.Link('mapper', href='/mapper'),
+    html.Span(' ] [ '),
+    dcc.Link('thd', href='/thd'),
     html.Span(' ]'),
     html.Hr(),
     html.Div(id='page-content')
@@ -25,6 +28,8 @@ def display_page(pathname):
         return []
     elif pathname == '/mapper':
         return page_mapper.layout
+    elif pathname == '/thd':
+        return page_thd.layout
     else:
         return 'page not found: {}'.format(pathname)
 
