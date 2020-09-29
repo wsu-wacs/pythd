@@ -51,7 +51,7 @@ layout = html.Div(style=dict(height='100%'), children=[
             html.Div(style=dict(gridColumn='1 / 2', gridRow='2 / 3', 
                                 borderTopStyle='solid'), children=[
                 cyto.Cytoscape(id='thd-tree',
-                    layout=dict(name='cose'), # TODO: tree layout
+                    layout=dict(name='preset'), # TODO: tree layout
                     style=dict(width='100%', height='400px'),
                     stylesheet=[],
                     elements=[])
@@ -62,12 +62,23 @@ layout = html.Div(style=dict(height='100%'), children=[
                               style=dict(gridColumn='2 / 3', gridRow='1 / 2',
                                          paddingLeft='5px', paddingBottom='10px')),
 
-    ])
+    ]),
+    # Hidden divs for callback outputs
+    html.Div(id='thd-bitbucket-1', style=dict(display='none'))
 ])
 
 ################################################################################
 # Callbacks
 ################################################################################
+# JavaScript callback to hide/show extra parameters for specific filters
+app.clientside_callback(
+        ClientsideFunction(
+            namespace='clientside',
+            function_name='selectFilter'),
+        Output('thd-bitbucket-1', 'children'),
+        [Input('thd-filter-dropdown', 'value')]
+)
+
 @app.callback([Output('thd-upload-div', 'children'),
                Output('thd-mapper-coloring-column-dropdown', 'options'),
                Output('thd-mapper-coloring-column-dropdown', 'value'),
@@ -88,3 +99,67 @@ def on_thd_upload_change(contents, filename):
     columns = [{'label': col, 'value': col} for col in df.columns]
     return display, columns, columns[0]['value'], info
 
+@app.callback(Output('thd-tree', 'elements'),
+              [Input('thd-button', 'n_clicks')],
+              [State('thd-upload', 'contents'),
+               State('thd-filter-dropdown', 'value'),
+               # Cover parameters
+               State('thd-cover-interval-input', 'value'),
+               State('thd-cover-overlap-input', 'value'),
+               # Clustering parameters
+               State('thd-cluster-method-dropdown', 'value'),
+               State('thd-cluster-metric-dropdown', 'value'),
+               # THD Parameters
+               State('thd-contract-input', 'value'),
+               State('thd-threshold-input', 'value'),
+               # Filter-specific parameters
+               # tSNE parameters
+               State('tsne-components-input', 'value'),
+               # PCA parameters
+               State('pca-components-input', 'value'),
+               # Component filter parameters
+               State('filter-component-input', 'value'),
+               # Eccentricity parameters
+               State('eccentricity-method-dropdown', 'value')
+])
+def on_run_thd_click(n_clicks, contents, filter_name,
+                     num_intervals, overlap,
+                     clust_method, metric,
+                     contract_amount, group_threshold,
+                     tsne_components, pca_components,
+                     component_list, eccentricity_method):
+    """
+    Called when a new THD is run
+    """
+    ctx = dash.callback_context
+    if (not ctx.triggered) or (not contents):
+        return dash.no_update
+
+    elements = []
+
+    df = contents_to_dataframe(contents)
+    n_components = tsne_components if filter_name == 'tsne' else pca_components
+    filt = get_filter(filter_name, metric, int(n_components), component_list, eccentricity_method)
+    f_x = filt(df.values)
+
+    cover = IntervalCover.EvenlySpacedFromValues(f_x, int(num_intervals), float(overlap) / 100)
+    clust = HierarchicalClustering(method=clust_method, metric=metric)
+    thd = THD(df, filt, cover, clust, float(contract_amount), int(group_threshold))
+
+    group = thd.run()
+    g = group.as_igraph_graph()
+    layout = g.layout_reingold_tilford()
+    layout.scale(150)
+    for i, v in enumerate(g.vs):
+        d = {
+                'data': {'id': v['id']},
+                'position': {'x': layout[i][0], 'y': layout[i][1]}
+        }
+        elements.append(d)
+
+    for e in g.es:
+        src = g.vs[e.source]
+        tgt = g.vs[e.target]
+        elements.append({'data': {'source': src['id'], 'target': tgt['id']}})
+
+    return elements

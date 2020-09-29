@@ -275,9 +275,25 @@ class THDGroup:
         
         g = igraph.Graph()
         for group in self:
-            g.add_vertex(name=group.get_name(),
+            name = group.get_name()
+            g.add_vertex(name=name,
+                         id=name,
                          num_rows=self.num_rows,
                          color=pal.get(int(round(group.value*127.0))))
+
+        for group in self:
+            for child in group.children:
+                g.add_edge(group.get_name(), child.get_name())
+        return g
+
+    def as_networkx_network(self):
+        import networkx as nx
+
+        g = nx.Graph()
+        for group in self:
+            name = group.get_name()
+            g.add_node(name, id=name, name=name,
+                       num_rows=self.num_rows)
 
         for group in self:
             for child in group.children:

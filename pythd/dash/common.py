@@ -4,8 +4,27 @@ Common functionality for all MAPPER dashboards
 import io, base64
 
 import pandas as pd
+from sklearn.manifold import TSNE
+from sklearn.decomposition import PCA
 
-__all__ = ['networkx_network_to_cytoscape_elements', 'contents_to_dataframe']
+from ..filter import *
+
+__all__ = ['get_filter', 'networkx_network_to_cytoscape_elements', 'contents_to_dataframe']
+
+def get_filter(name, metric, n_components=2, component_list=[0], eccentricity_method='mean'):
+    """
+    Get a filter object from parameters
+    """
+    if name == 'tsne':
+        return ScikitLearnFilter(TSNE, n_components=n_components, metric=metric)
+    elif name == 'pca':
+        return ScikitLearnFilter(PCA, n_components=n_components)
+    elif name == 'identity':
+        return IdentityFilter()
+    elif name == 'component':
+        return ComponentFilter(components)
+    elif name == 'eccentricity':
+        return EccentricityFilter(metric=metric, method=method)
 
 def networkx_network_to_cytoscape_elements(network, df):
     """

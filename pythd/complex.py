@@ -7,6 +7,7 @@ import json
 import pickle
 import itertools
 import numpy as np
+from numba.typed import List
 from numba import jit
 
 from .utils import open_or_use, create_igraph_network
@@ -507,7 +508,11 @@ class SimplicialComplex(object):
         to_visit = set(self.simplex_tree.children.keys())
         ones = self.get_k_simplices(k=1)
 
-        components = _get_ccs_inner_loop(to_visit, ones)
+        if len(ones) > 0:
+            ones = List(ones)
+            components = _get_ccs_inner_loop(to_visit, ones)
+        else:
+            components = list(map(lambda x: [x], ones))
         return components
     
     def get_igraph_network(self):

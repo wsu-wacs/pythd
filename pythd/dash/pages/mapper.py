@@ -15,7 +15,6 @@ from dash.dependencies import Input, Output, State, ClientsideFunction
 from ..app import app
 from ..common import *
 from ..layout_common import *
-from ...filter import *
 from ...cover import IntervalCover
 from ...clustering import HierarchicalClustering 
 from ...mapper import MAPPER
@@ -58,26 +57,9 @@ layout = html.Div(style=dict(height='100%'), children=[
 ################################################################################
 # Functions
 ################################################################################
-def get_filter(name, metric, *args):
-    if name == 'tsne':
-        n_components = int(args[0])
-        return ScikitLearnFilter(TSNE, n_components=n_components, metric=metric)
-    elif name == 'pca':
-        n_components = int(args[1])
-        return ScikitLearnFilter(PCA, n_components=n_components)
-    elif name == 'identity':
-        return IdentityFilter()
-    elif name == 'component':
-        components = args[2]
-        return ComponentFilter(components)
-    elif name == 'eccentricity':
-        method = args[3]
-        return EccentricityFilter(metric=metric, method=method)
-
 ################################################################################
 # Callbacks
 ################################################################################
-
 # JavaScript callback to hide/show extra parameters for specific filters
 app.clientside_callback(
         ClientsideFunction(
@@ -172,8 +154,13 @@ def on_run_mapper_click(n_clicks, contents, filter_name,
     elements = []
 
     df = contents_to_dataframe(contents)
-    filt = get_filter(filter_name, metric, *args)
+
+    n_components = args[0] if filter_name == 'tsne' else args[1]
+    component_list = args[2]
+    eccentricity_method = args[3]
+    filt = get_filter(filter_name, metric, n_components, component_list, eccentricity_method)
     f_x = filt(df.values)
+
     cover = IntervalCover.EvenlySpacedFromValues(f_x, int(num_intervals), float(overlap) / 100)
     clust = HierarchicalClustering(method=clust_method, metric=metric)
     mapper = MAPPER(filter=filt, cover=cover, clustering=clust)
