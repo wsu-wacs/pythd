@@ -1,4 +1,5 @@
 from pathlib import Path
+import json
 
 import pandas as pd
 
@@ -12,6 +13,7 @@ from ..app import app
 from ..common import *
 from ..layout_common import *
 from ...filter import *
+from ...complex import SimplicialComplex
 from ...cover import IntervalCover
 from ...clustering import HierarchicalClustering 
 from ...mapper import MAPPER
@@ -48,11 +50,12 @@ layout = html.Div(style=dict(height='100%'), children=[
                 html.Button('Run THD', id='thd-button', n_clicks=0)
             ]),
             # THD Tree view
-            html.Div(style=dict(gridColumn='1 / 2', gridRow='2 / 3', 
-                                borderTopStyle='solid'), children=[
+            html.Div(style=dict(borderTopStyle='solid'), children=[
                 cyto.Cytoscape(id='thd-tree',
-                    layout=dict(name='preset'), # TODO: tree layout
+                    layout=dict(name='preset', fit=True), 
                     style=dict(width='100%', height='400px'),
+                    userPanningEnabled=False,
+                    userZoomingEnabled=False,
                     stylesheet=[],
                     elements=[])
             ])
@@ -63,9 +66,22 @@ layout = html.Div(style=dict(height='100%'), children=[
                                          paddingLeft='5px', paddingBottom='10px')),
 
     ]),
+    # Hidden divs for storage
+    html.Div(id='thd-store', style=dict(display='none'), children=json.dumps({})),
     # Hidden divs for callback outputs
     html.Div(id='thd-bitbucket-1', style=dict(display='none'))
 ])
+
+################################################################################
+# Functions
+################################################################################
+def serialize_thd(thd):
+    d = thd.get_dict()
+    return json.dumps(d)
+
+def deserialize_thd(s):
+    d = json.loads(s)
+    return d
 
 ################################################################################
 # Callbacks
@@ -99,7 +115,38 @@ def on_thd_upload_change(contents, filename):
     columns = [{'label': col, 'value': col} for col in df.columns]
     return display, columns, columns[0]['value'], info
 
-@app.callback(Output('thd-tree', 'elements'),
+@app.callback(Output('thd-mapper-graph', 'elements'),
+              [Input('thd-tree', 'tapNodeData')],
+              [State('thd-store', 'children'),
+               State('thd-upload', 'contents')])
+def on_thd_node_select(tapNodeData, groups, contents):
+    """
+    Called when a node in the THD tree is clicked
+    """
+    ctx = dash.callback_context
+    if not ctx.triggered:
+        return dash.no_update
+
+    elements = []
+
+    group_name = tapNodeData['id']
+    groups = deserialize_thd(groups).get('groups', {})
+    if group_name in groups:
+        group = groups[group_name]
+
+        network = group['network']
+        complex = SimplicialComplex()
+        for s in network['simplices']:
+            complex.add_simplex(s['simplex'], data=s['data'], **s['dict'])
+        network = complex.get_networkx_network()
+
+        df = contents_to_dataframe(contents)
+        elements = networkx_network_to_cytoscape_elements(network, df)
+
+    return elements
+
+@app.callback([Output('thd-tree', 'elements'),
+               Output('thd-store', 'children')],
               [Input('thd-button', 'n_clicks')],
               [State('thd-upload', 'contents'),
                State('thd-filter-dropdown', 'value'),
@@ -133,7 +180,7 @@ def on_run_thd_click(n_clicks, contents, filter_name,
     """
     ctx = dash.callback_context
     if (not ctx.triggered) or (not contents):
-        return dash.no_update
+        return (dash.no_update,)*2
 
     elements = []
 
@@ -162,4 +209,5 @@ def on_run_thd_click(n_clicks, contents, filter_name,
         tgt = g.vs[e.target]
         elements.append({'data': {'source': src['id'], 'target': tgt['id']}})
 
-    return elements
+    return elements, serialize_thd(thd)
+

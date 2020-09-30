@@ -10,7 +10,7 @@ import numpy as np
 from numba.typed import List
 from numba import jit
 
-from .utils import open_or_use, create_igraph_network
+from .utils import open_or_use, create_igraph_network, create_networkx_network
 
 #TODO: use typed sets if numba adds them
 @jit(nopython=True, cache=True)
@@ -519,3 +519,9 @@ class SimplicialComplex(object):
         nodes = self.get_k_simplices(k=0, include_data=True)
         edges = self.get_k_simplices(k=1)
         return create_igraph_network(nodes, edges)
+
+    def get_networkx_network(self):
+        nodes = self.get_k_simplices(k=0, include_data=True)
+        edges = self.get_k_simplices(k=1)
+        return create_networkx_network(nodes, edges)
+
