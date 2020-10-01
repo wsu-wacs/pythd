@@ -50,6 +50,7 @@ def networkx_network_to_cytoscape_elements(network, df):
         node = network.nodes[n]
         d = {
                 'data': {'id': n,
+                         'points': list(node['points']),
                          'npoints': len(node['points']),
                          'density': len(node['points']) / maxn
             }}

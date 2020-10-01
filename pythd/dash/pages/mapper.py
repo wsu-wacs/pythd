@@ -10,6 +10,7 @@ import dash
 import dash_core_components as dcc
 import dash_html_components as html
 import dash_cytoscape as cyto
+from dash_table import DataTable
 from dash.dependencies import Input, Output, State, ClientsideFunction
 
 from ..app import app
@@ -175,17 +176,18 @@ def on_run_mapper_click(n_clicks, contents, filter_name,
     return elements, json.dumps(columns), info
 
 @app.callback(
-        Output('node-selection-div', 'children'),
-        [Input('mapper-graph', 'tapNodeData')])
-def on_network_action(tapNodeData):
+        Output('mapper-node-selection-div', 'children'),
+        [Input('mapper-graph', 'tapNodeData')],
+        [State('mapper-upload', 'contents')])
+def on_network_action(tapNodeData, contents):
     ctx = dash.callback_context
     if not ctx.triggered:
         return dash.no_update
 
-    print(tapNodeData)
-
-    keys = frozenset(['id', 'npoints', 'density'])
+    keys = frozenset(['id', 'npoints', 'points', 'density'])
     keys = frozenset(tapNodeData.keys()) - keys
+
+    df = contents_to_dataframe(contents).iloc[tapNodeData['points'], :]
 
     selDiv = [
         html.Span("Number of Points: {}".format(tapNodeData['npoints'])),
@@ -193,7 +195,10 @@ def on_network_action(tapNodeData):
             html.Div([
                 html.B('Average {}: '.format(k)),
                 html.Span('{:.2f}'.format(float(tapNodeData[k])))
-            ]) for k in keys])]
+            ]) for k in keys]),
+        DataTable(id='node-select-table',
+            columns = [{'name': c, 'id': c} for c in df.columns],
+            data=df.to_dict('records'))]
 
     return selDiv
 
