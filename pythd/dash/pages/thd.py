@@ -64,6 +64,9 @@ layout = html.Div(style=dict(height='100%'), children=[
         make_network_view_div(name='thd-mapper',
                               style=dict(gridColumn='2 / 3', gridRow='1 / 2',
                                          paddingLeft='5px', paddingBottom='10px')),
+        make_node_info_div(name='thd-mapper',
+                           style=dict(gridColumn='2 / 3', gridRow='2 / 3',
+                                      borderTopStyle='solid'))
 
     ]),
     # Hidden divs for storage
@@ -210,4 +213,33 @@ def on_run_thd_click(n_clicks, contents, filter_name,
         elements.append({'data': {'source': src['id'], 'target': tgt['id']}})
 
     return elements, serialize_thd(thd)
+
+@app.callback(
+        [Output('thd-mapper-node-summary', 'children'),
+         Output('thd-mapper-node-data', 'columns'),
+         Output('thd-mapper-node-data', 'data')],
+        [Input('thd-mapper-graph', 'tapNodeData')],
+        [State('thd-upload', 'contents')])
+def on_thd_network_action(tapNodeData, contents):
+    ctx = dash.callback_context
+    if not ctx.triggered:
+        return (dash.no_update,) * 3
+
+    keys = frozenset(['id', 'npoints', 'points', 'density'])
+    keys = frozenset(tapNodeData.keys()) - keys
+
+    df = contents_to_dataframe(contents).iloc[tapNodeData['points'], :]
+
+    summ = [
+        html.Span("Number of Points: {}".format(tapNodeData['npoints'])),
+        html.Div(children=[
+            html.Div([
+                html.B('Average {}: '.format(k)),
+                html.Span('{:.2f}'.format(float(tapNodeData[k])))
+            ]) for k in keys])
+    ]
+
+    columns = [{'name': c, 'id': c} for c in df.columns]
+    data = df.to_dict('records')
+    return summ, columns, data
 

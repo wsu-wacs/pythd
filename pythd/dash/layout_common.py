@@ -6,6 +6,7 @@ import dash
 import dash_core_components as dcc
 import dash_html_components as html
 import dash_cytoscape as cyto
+from dash_table import DataTable
 
 __all__ = ['make_filter_params', 'make_column_dropdown', 'make_upload_div', 'make_filter_div',
            'make_cover_div', 'make_clustering_div', 'make_network_settings_div',
@@ -273,16 +274,33 @@ def make_network_view_div(name='mapper', style={}):
             html.Span(id=name + '-network-info-span', style=dict(float='right'), children=[]),
             html.Span(id=name + '-color-info-span', style=dict(float='right'), children=[])
         ]),
-            cyto.Cytoscape(id=name + '-graph',
-                layout=dict(name='cose'),
-                style=dict(width='100%', height='800px'),
-                stylesheet=[colorings['density']],
-                elements=[])
+        html.Div(style=dict(display='flex', flexDirection='column', height='100%', width='100%',
+                            paddingBottom='2pt'), 
+                 children=[
+                    cyto.Cytoscape(id=name + '-graph',
+                        layout=dict(name='cose'),
+                        responsive=True,
+                        style=dict(width='100%', height='98%', zIndex=999),
+                        stylesheet=[colorings['density']],
+                        elements=[])
+        ])
     ])
 
 def make_node_info_div(name='mapper', style={}):
     return html.Div(style=style, children=[
         html.H3('Node Selection'),
-        html.Div(id=name + '-node-selection-div', children=[])
+        html.Div(style=dict(display='grid', gridTemplateColumns='50% 50%'), children=[
+            html.Div(style=dict(gridColumn='1 / 2'), children=[
+                html.H4('Summary'),
+                html.Div(id=name + '-node-summary')
+            ]),
+            html.Div(style=dict(gridColumn='2 / 3'), children=[
+                html.H4('Data'),
+                DataTable(id=name+'-node-data',
+                          page_size=10,
+                          columns=[],
+                          data=[])
+            ])
+        ])
     ])
 

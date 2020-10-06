@@ -27,7 +27,7 @@ layout = html.Div(style=dict(height='100%'), children=[
     # Main content div
     html.Div(style=dict(display='grid', 
                         gridTemplateColumns='20% auto',
-                        gridTemplateRows='80% auto',
+                        gridTemplateRows='70% auto',
                         height='100%'), 
              children=[
         # Left bar
@@ -47,7 +47,7 @@ layout = html.Div(style=dict(height='100%'), children=[
 
         # Node information
         make_node_info_div(style=dict(gridColumn='2 / 3', gridRow='2 / 3', 
-                                      borderTopStyle='solid', overflowY='scroll'))
+                                      borderTopStyle='solid'))
     ]),
     # Hidden divs for callback outputs
     html.Div(id='bit-bucket-1', style=dict(display='none')),
@@ -176,29 +176,31 @@ def on_run_mapper_click(n_clicks, contents, filter_name,
     return elements, json.dumps(columns), info
 
 @app.callback(
-        Output('mapper-node-selection-div', 'children'),
+        [Output('mapper-node-summary', 'children'),
+         Output('mapper-node-data', 'columns'),
+         Output('mapper-node-data', 'data')],
         [Input('mapper-graph', 'tapNodeData')],
         [State('mapper-upload', 'contents')])
 def on_network_action(tapNodeData, contents):
     ctx = dash.callback_context
     if not ctx.triggered:
-        return dash.no_update
+        return (dash.no_update,) * 3
 
     keys = frozenset(['id', 'npoints', 'points', 'density'])
     keys = frozenset(tapNodeData.keys()) - keys
 
     df = contents_to_dataframe(contents).iloc[tapNodeData['points'], :]
 
-    selDiv = [
+    summ = [
         html.Span("Number of Points: {}".format(tapNodeData['npoints'])),
         html.Div(children=[
             html.Div([
                 html.B('Average {}: '.format(k)),
                 html.Span('{:.2f}'.format(float(tapNodeData[k])))
-            ]) for k in keys]),
-        DataTable(id='node-select-table',
-            columns = [{'name': c, 'id': c} for c in df.columns],
-            data=df.to_dict('records'))]
+            ]) for k in keys])
+    ]
 
-    return selDiv
+    columns = [{'name': c, 'id': c} for c in df.columns]
+    data = df.to_dict('records')
+    return summ, columns, data
 
