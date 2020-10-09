@@ -26,12 +26,13 @@ layout = html.Div(style=dict(height='100%'), children=[
     # Main content div
     html.Div(style=dict(display='grid',
                         gridTemplateColumns='20% auto',
-                        gridTemplateRows='80% auto',
+                        gridTemplateRows='20% 40% auto',
                         height='100%'),
              children=[
         # Left bar
-        html.Div(style=dict(gridColumn='1 / 2', gridRow='1 / 3', borderRightStyle='solid'), children=[
+        html.Div(style=dict(gridColumn='1 / 2', gridRow='1 / 4', borderRightStyle='solid'), children=[
             make_upload_div(name='thd-upload'),
+            html.H3('MAPPER Settings'),
             make_filter_div(name='thd-filter'),
             make_clustering_div(name='thd-cluster'),
             make_network_settings_div(name='thd-mapper'),
@@ -47,7 +48,17 @@ layout = html.Div(style=dict(height='100%'), children=[
                 dcc.Input(id='thd-threshold-input', debounce=True, inputMode='numeric',
                           min=1, value=100),
                 html.Br(),
-                html.Button('Run THD', id='thd-button', n_clicks=0)
+                html.Button('Run THD', id='thd-button', n_clicks=0),
+
+                html.H3('THD Tree Settings'),
+                html.Span('Tree coloring: '),
+                dcc.Dropdown(id='thd-tree-color-dropdown',
+                             searchable=False,
+                             value='none',
+                             options=[
+                                 {'label': 'None', 'value': 'none'},
+                                 {'label': 'Density', 'value': 'density'}
+                             ])
             ]),
             # THD Tree view
             html.Div(style=dict(borderTopStyle='solid'), children=[
@@ -62,15 +73,16 @@ layout = html.Div(style=dict(height='100%'), children=[
         ]),
 
         make_network_view_div(name='thd-mapper',
-                              style=dict(gridColumn='2 / 3', gridRow='1 / 2',
+                              style=dict(gridColumn='2 / 3', gridRow='1 / 3',
                                          paddingLeft='5px', paddingBottom='10px')),
         make_node_info_div(name='thd-mapper',
-                           style=dict(gridColumn='2 / 3', gridRow='2 / 3',
+                           style=dict(gridColumn='2 / 3', gridRow='3 / 4',
                                       borderTopStyle='solid'))
 
     ]),
     # Hidden divs for storage
     html.Div(id='thd-store', style=dict(display='none'), children=json.dumps({})),
+    html.Div(id='thd-columns-store', style=dict(display='none'), children=json.dumps({})),
     # Hidden divs for callback outputs
     html.Div(id='thd-bitbucket-1', style=dict(display='none'))
 ])
@@ -98,6 +110,38 @@ app.clientside_callback(
         [Input('thd-filter-dropdown', 'value')]
 )
 
+@app.callback([Output('thd-mapper-graph', 'stylesheet'),
+               Output('thd-mapper-coloring-params-div', 'style'),
+               Output('thd-mapper-color-info-span', 'children')],
+              [Input('thd-mapper-coloring-dropdown', 'value'),
+               Input('thd-mapper-coloring-column-dropdown', 'value')],
+              [State('thd-mapper-graph', 'stylesheet'),
+               State('thd-columns-store', 'children')])
+def on_thd_mapper_coloring_change(coloring, column, stylesheet, columns):
+    ctx = dash.callback_context
+    if not ctx.triggered:
+        return (dash.no_update,)*3
+    
+    info = ''
+    hide_show = dict(display='none')
+
+    if coloring == 'density':
+        stylesheet = [colorings['density']]
+        info = 'density coloring'
+    elif coloring == 'column':
+        hide_show = dict(display='initial')
+        if columns:
+            columns = json.loads(columns)
+            minv, maxv = columns[column]
+            stylesheet = [{
+                'selector': 'node',
+                'style': {
+                    'backgroundColor': 'mapData({}, {}, {}, blue, red)'.format(column, minv, maxv)
+                }
+            }]
+            info = '{} ({:.2f}, {:.2f}); '.format(column, minv, maxv)
+    return stylesheet, hide_show, info
+
 @app.callback([Output('thd-upload-div', 'children'),
                Output('thd-mapper-coloring-column-dropdown', 'options'),
                Output('thd-mapper-coloring-column-dropdown', 'value'),
@@ -118,7 +162,8 @@ def on_thd_upload_change(contents, filename):
     columns = [{'label': col, 'value': col} for col in df.columns]
     return display, columns, columns[0]['value'], info
 
-@app.callback(Output('thd-mapper-graph', 'elements'),
+@app.callback([Output('thd-mapper-graph', 'elements'),
+               Output('thd-columns-store', 'children')],
               [Input('thd-tree', 'tapNodeData')],
               [State('thd-store', 'children'),
                State('thd-upload', 'contents')])
@@ -128,9 +173,10 @@ def on_thd_node_select(tapNodeData, groups, contents):
     """
     ctx = dash.callback_context
     if not ctx.triggered:
-        return dash.no_update
+        return (dash.no_update,)*2
 
     elements = []
+    columns = {}
 
     group_name = tapNodeData['id']
     groups = deserialize_thd(groups).get('groups', {})
@@ -145,8 +191,11 @@ def on_thd_node_select(tapNodeData, groups, contents):
 
         df = contents_to_dataframe(contents)
         elements = networkx_network_to_cytoscape_elements(network, df)
+        for col in df.columns:
+            vals = [d['data'][col] for d in elements if 'id' in d['data']]
+            columns[col] = (min(vals), max(vals))
 
-    return elements
+    return elements, json.dumps(columns)
 
 @app.callback([Output('thd-tree', 'elements'),
                Output('thd-store', 'children')],
@@ -242,4 +291,28 @@ def on_thd_network_action(tapNodeData, contents):
     columns = [{'name': c, 'id': c} for c in df.columns]
     data = df.to_dict('records')
     return summ, columns, data
+
+@app.callback(
+        Output('thd-tree', 'stylesheet'),
+        [Input('thd-tree-color-dropdown', 'value'),
+         Input('thd-store', 'children')])
+def handle_thd_tree_coloring(color_value, thd):
+    ctx = dash.callback_context
+    if not ctx.triggered:
+        return dash.no_update
+
+    if color_value == 'none':
+        return []
+
+    thd = json.loads(thd)
+    if thd == {}:
+        return []
+
+    print(thd)
+    d = {
+        'selector': 'node',
+        'style': {}
+    }
+
+    return [d]
 

@@ -104,7 +104,7 @@ def make_upload_div(name='mapper-upload', style={}):
     dash_html_components.Div
     """
     return html.Div(style=style, children=[
-        html.H4('Data'),
+        html.H3('Data'),
         dcc.Upload(id=name,
           children=html.Div([
             html.Div(id=name+'-div', children='Drop a file here or click to select file.'),
