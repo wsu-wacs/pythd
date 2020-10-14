@@ -244,6 +244,7 @@ def make_network_settings_div(name='network', style={}):
             dcc.Dropdown(id=name + '-coloring-dropdown',
                 value='density',
                 options=[
+                    {'label': 'None', 'value': 'none'},
                     {'label': 'Point Density', 'value': 'density'},
                     {'label': 'Column', 'value': 'column'}
                 ]),

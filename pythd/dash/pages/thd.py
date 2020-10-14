@@ -57,8 +57,16 @@ layout = html.Div(style=dict(height='100%'), children=[
                              value='none',
                              options=[
                                  {'label': 'None', 'value': 'none'},
-                                 {'label': 'Density', 'value': 'density'}
-                             ])
+                                 {'label': 'Density', 'value': 'density'},
+                                 {'label': 'Column', 'value': 'column'}
+                             ]),
+                html.Div(id='thd-tree-coloring-div', style=dict(display='none'), children=[
+                    html.Span('Column:'),
+                    dcc.Dropdown(id='thd-tree-column-dropdown',
+                                 searchable=False,
+                                 value='',
+                                 options=[])
+                ])
             ]),
             # THD Tree view
             html.Div(style=dict(borderTopStyle='solid'), children=[
@@ -125,7 +133,10 @@ def on_thd_mapper_coloring_change(coloring, column, stylesheet, columns):
     info = ''
     hide_show = dict(display='none')
 
-    if coloring == 'density':
+    if coloring == 'none':
+        stylesheet = []
+        info = 'no coloring'
+    elif coloring == 'density':
         stylesheet = [colorings['density']]
         info = 'density coloring'
     elif coloring == 'column':
@@ -198,7 +209,9 @@ def on_thd_node_select(tapNodeData, groups, contents):
     return elements, json.dumps(columns)
 
 @app.callback([Output('thd-tree', 'elements'),
-               Output('thd-store', 'children')],
+               Output('thd-store', 'children'),
+               Output('thd-tree-column-dropdown', 'options'),
+               Output('thd-tree-column-dropdown', 'value')],
               [Input('thd-button', 'n_clicks')],
               [State('thd-upload', 'contents'),
                State('thd-filter-dropdown', 'value'),
@@ -232,7 +245,7 @@ def on_run_thd_click(n_clicks, contents, filter_name,
     """
     ctx = dash.callback_context
     if (not ctx.triggered) or (not contents):
-        return (dash.no_update,)*2
+        return (dash.no_update,)*4
 
     elements = []
 
@@ -249,9 +262,15 @@ def on_run_thd_click(n_clicks, contents, filter_name,
     g = group.as_igraph_graph()
     layout = g.layout_reingold_tilford()
     layout.scale(150)
+
+    nrows = [v['num_rows'] for v in g.vs]
+    minv = min(nrows)
+    maxv = max(nrows)
+
     for i, v in enumerate(g.vs):
         d = {
-                'data': {'id': v['id']},
+                'data': {'id': v['id'], 'nrows': v['num_rows'], 
+                         'density': (v['num_rows'] - minv) / (maxv - minv)},
                 'position': {'x': layout[i][0], 'y': layout[i][1]}
         }
         elements.append(d)
@@ -261,7 +280,9 @@ def on_run_thd_click(n_clicks, contents, filter_name,
         tgt = g.vs[e.target]
         elements.append({'data': {'source': src['id'], 'target': tgt['id']}})
 
-    return elements, serialize_thd(thd)
+    columns = [{'label': col, 'value': col} for col in df.columns]
+
+    return elements, serialize_thd(thd), columns, columns[0]['value']
 
 @app.callback(
         [Output('thd-mapper-node-summary', 'children'),
@@ -293,26 +314,44 @@ def on_thd_network_action(tapNodeData, contents):
     return summ, columns, data
 
 @app.callback(
-        Output('thd-tree', 'stylesheet'),
+        [Output('thd-tree', 'stylesheet'), 
+         Output('thd-tree-coloring-div', 'style')],
         [Input('thd-tree-color-dropdown', 'value'),
-         Input('thd-store', 'children')])
-def handle_thd_tree_coloring(color_value, thd):
+         Input('thd-store', 'children')],
+        [State('thd-tree', 'stylesheet')])
+def handle_thd_tree_coloring(color_value, thd, stylesheet):
     ctx = dash.callback_context
     if not ctx.triggered:
-        return dash.no_update
+        return (dash.no_update,)*2
+
+    hideshow = dict(display='none')
 
     if color_value == 'none':
-        return []
+        return [], hideshow
 
     thd = json.loads(thd)
     if thd == {}:
-        return []
+        return stylesheet, hideshow
 
     print(thd)
+
+    if color_value == 'density':
+        stylesheet = [
+            {
+                'selector': 'node',
+                'style': {
+                    'background-color': 'mapData(density, 0, 1, blue, red)'
+                }
+            }
+        ]
+        return stylesheet, hideshow
+    elif color_value == 'column':
+        hideshow = dict(display='initial')
+
     d = {
         'selector': 'node',
         'style': {}
     }
 
-    return [d]
+    return [d], hideshow
 

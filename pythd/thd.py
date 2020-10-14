@@ -278,7 +278,7 @@ class THDGroup:
             name = group.get_name()
             g.add_vertex(name=name,
                          id=name,
-                         num_rows=self.num_rows,
+                         num_rows=group.num_rows,
                          color=pal.get(int(round(group.value*127.0))))
 
         for group in self:
