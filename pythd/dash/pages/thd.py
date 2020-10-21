@@ -18,6 +18,7 @@ from ...cover import IntervalCover
 from ...clustering import HierarchicalClustering 
 from ...mapper import MAPPER
 from ...thd import THD
+from ...utils import MinMaxScaler
 
 ################################################################################
 # Layout
@@ -26,11 +27,11 @@ layout = html.Div(style=dict(height='100%'), children=[
     # Main content div
     html.Div(style=dict(display='grid',
                         gridTemplateColumns='20% auto',
-                        gridTemplateRows='20% 40% auto',
+                        gridTemplateRows='25% 25% auto auto',
                         height='100%'),
              children=[
         # Left bar
-        html.Div(style=dict(gridColumn='1 / 2', gridRow='1 / 4', borderRightStyle='solid'), children=[
+        html.Div(style=dict(gridColumn='1 / 2', gridRow='1 / 5', borderRightStyle='solid'), children=[
             make_upload_div(name='thd-upload'),
             html.H3('MAPPER Settings'),
             make_filter_div(name='thd-filter'),
@@ -85,7 +86,18 @@ layout = html.Div(style=dict(height='100%'), children=[
                                          paddingLeft='5px', paddingBottom='10px')),
         make_node_info_div(name='thd-mapper',
                            style=dict(gridColumn='2 / 3', gridRow='3 / 4',
-                                      borderTopStyle='solid'))
+                                      borderTopStyle='solid')),
+
+        html.Div(style=dict(gridColumn='2 / 3', gridRow='4 / 5'), children=[
+            html.H3('Group Selection'),
+            html.Div(style=dict(display='grid', gridTemplateColumns='50% 50%'), children=[
+                html.Div(style=dict(gridColumn='1 / 2'), children=[
+                    html.H4('Summary')
+                ]),
+                html.Div(style=dict(gridColumn='2 / 3'), children=[
+                ])
+            ])
+        ])
 
     ]),
     # Hidden divs for storage
@@ -259,20 +271,27 @@ def on_run_thd_click(n_clicks, contents, filter_name,
     thd = THD(df, filt, cover, clust, float(contract_amount), int(group_threshold))
 
     group = thd.run()
-    g = group.as_igraph_graph()
+    g = group.as_igraph_graph(True)
     layout = g.layout_reingold_tilford()
     layout.scale(150)
 
     nrows = [v['num_rows'] for v in g.vs]
-    minv = min(nrows)
-    maxv = max(nrows)
+    rowsc = MinMaxScaler(min(nrows), max(nrows))
+    cvs = {}
+    for col in df.columns:
+        values = [v[col][1] for v in g.vs]
+        print(values)
+        cvs[col] = MinMaxScaler(min(values), max(values))
 
     for i, v in enumerate(g.vs):
         d = {
                 'data': {'id': v['id'], 'nrows': v['num_rows'], 
-                         'density': (v['num_rows'] - minv) / (maxv - minv)},
+                         'density': rowsc.scale(v['num_rows'])},
                 'position': {'x': layout[i][0], 'y': layout[i][1]}
         }
+        d['data'].update({col: cvs[col].scale(v[col][1])
+                          for col in df.columns})
+
         elements.append(d)
 
     for e in g.es:
@@ -317,9 +336,10 @@ def on_thd_network_action(tapNodeData, contents):
         [Output('thd-tree', 'stylesheet'), 
          Output('thd-tree-coloring-div', 'style')],
         [Input('thd-tree-color-dropdown', 'value'),
-         Input('thd-store', 'children')],
+         Input('thd-store', 'children'),
+         Input('thd-tree-column-dropdown', 'value')],
         [State('thd-tree', 'stylesheet')])
-def handle_thd_tree_coloring(color_value, thd, stylesheet):
+def handle_thd_tree_coloring(color_value, thd, column, stylesheet):
     ctx = dash.callback_context
     if not ctx.triggered:
         return (dash.no_update,)*2
@@ -333,8 +353,6 @@ def handle_thd_tree_coloring(color_value, thd, stylesheet):
     if thd == {}:
         return stylesheet, hideshow
 
-    print(thd)
-
     if color_value == 'density':
         stylesheet = [
             {
@@ -347,11 +365,19 @@ def handle_thd_tree_coloring(color_value, thd, stylesheet):
         return stylesheet, hideshow
     elif color_value == 'column':
         hideshow = dict(display='initial')
+        if column == '':
+            stylesheet = []
+        else:
+            stylesheet = [
+                {
+                    'selector': 'node',
+                    'style': {
+                        'background-color': 'mapData({}, 0, 1, blue, red)'.format(column)
+                    }
+                }
+            ]
+    else:
+        stylesheet = []
 
-    d = {
-        'selector': 'node',
-        'style': {}
-    }
-
-    return [d], hideshow
+    return stylesheet, hideshow
 

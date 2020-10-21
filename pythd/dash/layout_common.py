@@ -131,7 +131,7 @@ def make_filter_div(name='filter', style={}):
             html.H4('Filter'),
             dcc.Dropdown(id=name + '-dropdown',
                 searchable=False,
-                value='tsne',
+                value='pca',
                 options=[
                     {'label': 'tSNE', 'value': 'tsne'},
                     {'label': 'PCA', 'value': 'pca'},

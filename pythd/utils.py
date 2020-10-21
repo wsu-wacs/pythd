@@ -66,3 +66,17 @@ class open_or_use:
     def __exit__(self, type, value, traceback):
         if self.needs_close:
             self.f.close()
+
+class MinMaxScaler:
+    def __init__(self, minv=0.0, maxv=1.0):
+        self.min = minv
+        self.diff = maxv - minv
+        if self.diff == 0:
+            self.mult = 1.0
+            self.min = 0.0
+        else:
+            self.mult = 1.0 / self.diff
+
+    def scale(self, v=0.0):
+        return self.mult * (v - self.min)
+

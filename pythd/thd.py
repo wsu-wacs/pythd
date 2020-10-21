@@ -259,6 +259,13 @@ class THDGroup:
     def get_data(self):
         return self.dataset.iloc[self.rid_list, :]
 
+    def get_stats(self):
+        df = self.get_data()
+        means = df.mean(axis=0)
+        mins = df.min(axis=0)
+        maxs = df.max(axis=0)
+        return (means, mins, maxs)
+
     def add_child(self, child):
         child.depth = self.depth + 1
         child.parent = self
@@ -269,17 +276,23 @@ class THDGroup:
         
         self.children.append(child)
     
-    def as_igraph_graph(self):
+    def as_igraph_graph(self, include_column_summary=False):
         import igraph
         pal = igraph.drawing.colors.AdvancedGradientPalette(["blue", "orange", "green", "red"], n=128)
         
         g = igraph.Graph()
         for group in self:
+            cd = {}
+            if include_column_summary:
+                means, mins, maxs = group.get_stats()
+                cd = {c: (mins.loc[c], means.loc[c], maxs.loc[c]) for c in means.index}
+
             name = group.get_name()
             g.add_vertex(name=name,
                          id=name,
                          num_rows=group.num_rows,
-                         color=pal.get(int(round(group.value*127.0))))
+                         color=pal.get(int(round(group.value*127.0))),
+                         **cd)
 
         for group in self:
             for child in group.children:
