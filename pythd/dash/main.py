@@ -4,6 +4,7 @@ import dash_html_components as html
 from dash.dependencies import Input, Output, State
 
 from .app import app
+from .config import *
 
 from .pages import mapper as page_mapper
 from .pages import thd as page_thd
@@ -34,5 +35,10 @@ def display_page(pathname):
         return 'page not found: {}'.format(pathname)
 
 if __name__ == '__main__':
+    # Initialize uploaded data cache
+    DATA_DIR.mkdir(exist_ok=True)
+    for p in DATA_DIR.glob('*.pkl'):
+        p.unlink()
+
     app.run_server(debug=True)
 

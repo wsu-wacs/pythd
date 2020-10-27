@@ -8,7 +8,7 @@ import dash_html_components as html
 import dash_cytoscape as cyto
 from dash_table import DataTable
 
-__all__ = ['make_filter_params', 'make_column_dropdown', 'make_upload_div', 'make_filter_div',
+__all__ = ['make_filter_params', 'make_upload_div', 'make_filter_div', 'make_columns_div',
            'make_cover_div', 'make_clustering_div', 'make_network_settings_div',
            'make_network_view_div', 'colorings', 'make_node_info_div']
 
@@ -57,6 +57,7 @@ def make_filter_params():
             html.Span('Method: '),
             dcc.Dropdown(id='eccentricity-method-dropdown',
                 searchable=False,
+                clearable=False,
                 value='mean',
                 options=[
                     {'label': 'Mean', 'value': 'mean'},
@@ -64,29 +65,6 @@ def make_filter_params():
                 ]),
         ], style=dict(display='none'))
     ])
-
-def make_column_dropdown(columns, name='column-dropdown'):
-    """
-    Make dropdown for a list of selectable columns in a dataset
-
-    Parameters
-    ----------
-    columns : list of str
-        The list of column names
-    name : str
-        The name of the dropdown component to use
-
-    Returns
-    -------
-    dash_core_components.Dropdown
-        The Dropdown element
-    """
-    return dcc.Dropdown(id=name,
-                        searchable=False,
-                        value=columns[0],
-                        options=[
-                            {'label': col, 'value': col}
-                            for col in columns.keys()])
 
 def make_upload_div(name='mapper-upload', style={}):
     """
@@ -112,6 +90,17 @@ def make_upload_div(name='mapper-upload', style={}):
         ]))
     ])
 
+def make_columns_div(name='mapper-columns', style={}):
+    """
+    Make div with dropdown for selecting columns to use in MAPPER
+    """
+    return html.Div(style=style, children=[
+        html.H3('Columns'),
+        dcc.Dropdown(id=name+'-dropdown',
+                     multi=True,
+                     placeholder='Select columns')
+    ])
+
 def make_filter_div(name='filter', style={}):
     """
     Make the div for filter selection and parameters
@@ -131,6 +120,7 @@ def make_filter_div(name='filter', style={}):
             html.H4('Filter'),
             dcc.Dropdown(id=name + '-dropdown',
                 searchable=False,
+                clearable=False,
                 value='pca',
                 options=[
                     {'label': 'tSNE', 'value': 'tsne'},
@@ -193,6 +183,7 @@ def make_clustering_div(name='cluster', style={}):
             html.H4('Clustering'),
             html.Span('Method: '),
             dcc.Dropdown(id=name + '-method-dropdown',
+                clearable=False,
                 searchable=False,
                 value='single',
                 options=[
@@ -206,6 +197,7 @@ def make_clustering_div(name='cluster', style={}):
                 ]),
             html.Span('Metric: '),
             dcc.Dropdown(id=name + '-metric-dropdown',
+                clearable=False,
                 searchable=False,
                 value='euclidean',
                 options=[
@@ -236,12 +228,14 @@ def make_network_settings_div(name='network', style={}):
             html.H4('Network View'),
             html.Span('Layout Algorithm: '),
             dcc.Dropdown(id=name + '-layout-dropdown',
+                clearable=False,
                 value='cose',
                 options=[
                     {'label': 'COSE', 'value': 'cose'}
                 ]),
             html.Span('Node Coloring: '),
             dcc.Dropdown(id=name + '-coloring-dropdown',
+                clearable=False,
                 value='density',
                 options=[
                     {'label': 'None', 'value': 'none'},
@@ -250,7 +244,7 @@ def make_network_settings_div(name='network', style={}):
                 ]),
             html.Div(id=name + '-coloring-params-div', style=dict(display='none'), children=[
                 html.Span('Column: '),
-                dcc.Dropdown(id=name + '-coloring-column-dropdown', options=[])
+                dcc.Dropdown(id=name + '-coloring-column-dropdown', options=[], clearable=False)
             ])
     ])
 
@@ -293,7 +287,10 @@ def make_node_info_div(name='mapper', style={}):
         html.Div(style=dict(display='grid', gridTemplateColumns='50% 50%'), children=[
             html.Div(style=dict(gridColumn='1 / 2'), children=[
                 html.H4('Summary'),
-                html.Div(id=name + '-node-summary')
+                DataTable(id=name+'-node-summary',
+                          page_size=10,
+                          columns=[],
+                          data=[])
             ]),
             html.Div(style=dict(gridColumn='2 / 3'), children=[
                 html.H4('Data'),

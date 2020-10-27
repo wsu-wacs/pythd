@@ -1,15 +1,18 @@
 """
 Common functionality for all MAPPER dashboards
 """
-import io, base64
+import io, base64, pickle
+from uuid import uuid4
 
 import pandas as pd
 from sklearn.manifold import TSNE
 from sklearn.decomposition import PCA
 
 from ..filter import *
+from .config import *
 
-__all__ = ['get_filter', 'networkx_network_to_cytoscape_elements', 'contents_to_dataframe']
+__all__ = ['get_filter', 'networkx_network_to_cytoscape_elements', 'contents_to_dataframe',
+           'make_dataframe_token', 'load_cached_dataframe', 'summarize_dataframe']
 
 def get_filter(name, metric, n_components=2, component_list=[0], eccentricity_method='mean'):
     """
@@ -96,4 +99,63 @@ def contents_to_dataframe(contents):
         with io.StringIO(contents.decode('utf-8')) as f:
             df = pd.read_csv(f, header=0, index_col=0)
     return df
+
+def make_dataframe_token(df):
+    """
+    Pickle the dataframe to the cache dir and return the file path
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        The dataframe, loaded into memory
+
+    Returns
+    -------
+    pathlib.Path
+        The path object to the pickled dataframe
+    """
+    fname = DATA_DIR / '{}.pkl'.format(uuid4())
+    with open(fname, 'wb') as f:
+        pickle.dump(df, f)
+    return fname
+
+def load_cached_dataframe(fname):
+    """
+    Load a previously cached dataframe
+
+    Parameters
+    ----------
+    fname : pathlib.Path or str
+        The path to the pickled dataframe
+
+    Returns
+    -------
+    pandas.DataFrame
+        The un-pickled dataframe
+    """
+    with open(fname, 'rb') as f:
+        df = pickle.load(f)
+    return df
+
+def summarize_dataframe(df):
+    """
+    Make a summary dataframe from a given dataframe
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        The dataframe to summarize
+
+    Returns
+    -------
+    pandas.DataFrame
+    """
+    return pd.DataFrame({
+            'column': df.columns,
+            'mean': df.mean(axis=0),
+            'median': df.median(axis=0),
+            'min': df.min(axis=0),
+            'max': df.max(axis=0)
+        },
+        index=df.columns)
 

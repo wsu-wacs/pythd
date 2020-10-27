@@ -1,8 +1,11 @@
 *.pyc
+*.pickle
+*.pkl
 build/
 dist/
 data/
 results/
+upload/
 __pycache__/
 *.egg-info/
 .ipynb_checkpoints/

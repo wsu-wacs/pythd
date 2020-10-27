@@ -22,12 +22,20 @@ class THD:
     group_threshold : int
         The group threshold to use. Any connected components with
         less data points than this will not be used
+    full_df : numpy.ndarray or pandas.DataFrame (optional)
+        The full dataset used to build the THD.
+        This can be given to allow coloring by columns not used in building the THD
     """
     def __init__(self, dataset, filt, cover,
                  clustering=HierarchicalClustering(),
                  contract_amount=0.1,
-                 group_threshold=100):
+                 group_threshold=100,
+                 full_df=None):
         self.dataset = pd.DataFrame(dataset)
+        if full_df is not None:
+            self.full_df = pd.DataFrame(full_df)
+        else:
+            self.full_df = self.dataset
         self.filter = filt
         self.base_cover = copy.deepcopy(cover)
         self.clustering = clustering
@@ -42,7 +50,8 @@ class THD:
                      rids=list(range(self.dataset.shape[0])),
                      clustering=self.clustering,
                      contract_amount=self.contract_amount,
-                     group_threshold=self.group_threshold)
+                     group_threshold=self.group_threshold,
+                     full_df=self.full_df)
         self.jobs = [self.root]
         self.is_run = False
 
@@ -134,8 +143,13 @@ class THDJob:
                  clustering=HierarchicalClustering(),
                  group_threshold=100,
                  contract_amount=0.1,
-                 parent=None):
+                 parent=None,
+                 full_df=None):
         self.dataset = dataset
+        if full_df is not None:
+            self.full_df = full_df
+        else:
+            self.full_df = self.dataset
         self.filt = filt
         self.cover = copy.deepcopy(cover)
         self.rids = rids
@@ -162,7 +176,7 @@ class THDJob:
         self.network = self.result.compute_k_skeleton(k=1)
         self.components = self.network.get_connected_components()
         
-        self.group = THDGroup(self.dataset, self.rids, self.network)
+        self.group = THDGroup(self.dataset, self.rids, self.network, full_df=self.full_df)
         if self.parent:
             self.parent.add_child(self.group)
         # row IDs for each group
@@ -188,7 +202,8 @@ class THDJob:
                                  clustering=self.clustering,
                                  group_threshold=self.group_threshold,
                                  contract_amount=self.contract_amount,
-                                 parent=self.group)
+                                 parent=self.group,
+                                 full_df=self.full_df)
                     self.child_jobs.append(job)
         self.is_run = True
 
@@ -205,8 +220,12 @@ class THDGroup:
     network : pythd.complex.SimplicialComplex
         The simplicial complex produced by MAPPER on the group
     """
-    def __init__(self, dataset, rids, network):
+    def __init__(self, dataset, rids, network, full_df=None):
         self.dataset = dataset
+        if full_df is not None:
+            self.full_df = full_df
+        else:
+            self.full_df = self.dataset
         self.rid_list = list(map(int, rids))
         self.rids = set(self.rid_list)
         self.num_rows = len(self.rids)
@@ -256,8 +275,12 @@ class THDGroup:
     def get_name(self):
         return "{}.{}.{}".format(self.depth, self.id, self.parent_id)
     
-    def get_data(self):
-        return self.dataset.iloc[self.rid_list, :]
+    def get_data(self, full_data=True):
+        if full_data:
+            df = self.full_df
+        else:
+            df = self.dataset
+        return df.iloc[self.rid_list, :]
 
     def get_stats(self):
         df = self.get_data()
@@ -348,7 +371,8 @@ class THDGroup:
             "density": self.density,
             "num_nodes": self.network_size,
             "color": self.value,
-            "data_shape": list(self.dataset.shape)
+            "data_shape": list(self.dataset.shape),
+            "full_data_shape": list(self.full_df.shape)
         }
         
         if include_network:

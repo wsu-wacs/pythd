@@ -33,6 +33,7 @@ layout = html.Div(style=dict(height='100%'), children=[
         # Left bar
         html.Div(style=dict(gridColumn='1 / 2', gridRow='1 / 5', borderRightStyle='solid'), children=[
             make_upload_div(name='thd-upload'),
+            make_columns_div(name='thd-columns'),
             html.H3('MAPPER Settings'),
             make_filter_div(name='thd-filter'),
             make_clustering_div(name='thd-cluster'),
@@ -103,6 +104,7 @@ layout = html.Div(style=dict(height='100%'), children=[
     # Hidden divs for storage
     html.Div(id='thd-store', style=dict(display='none'), children=json.dumps({})),
     html.Div(id='thd-columns-store', style=dict(display='none'), children=json.dumps({})),
+    html.Div(id='thd-file-store', style=dict(display='none'), children=''),
     # Hidden divs for callback outputs
     html.Div(id='thd-bitbucket-1', style=dict(display='none'))
 ])
@@ -168,7 +170,10 @@ def on_thd_mapper_coloring_change(coloring, column, stylesheet, columns):
 @app.callback([Output('thd-upload-div', 'children'),
                Output('thd-mapper-coloring-column-dropdown', 'options'),
                Output('thd-mapper-coloring-column-dropdown', 'value'),
-               Output('thd-mapper-data-info-span', 'children')],
+               Output('thd-mapper-data-info-span', 'children'),
+               Output('thd-file-store', 'children'),
+               Output('thd-columns-dropdown', 'options'),
+               Output('thd-columns-dropdown', 'value')],
               [Input('thd-upload', 'contents')],
               [State('thd-upload', 'filename')])
 def on_thd_upload_change(contents, filename):
@@ -176,21 +181,23 @@ def on_thd_upload_change(contents, filename):
     Called when a data file is uploaded
     """
     ctx = dash.callback_context
-    if not ctx.triggered:
-        return (dash.no_update,)*4
+    if (not ctx.triggered) or (contents == ''):
+        return (dash.no_update,)*7
 
     display = 'Uploaded file: {}'.format(filename)
     df = contents_to_dataframe(contents)
     info = '{}; {} rows, {} columns'.format(Path(filename).name, df.shape[0], df.shape[1])
     columns = [{'label': col, 'value': col} for col in df.columns]
-    return display, columns, columns[0]['value'], info
+    fpath = make_dataframe_token(df)
+
+    return display, columns, columns[0]['value'], info, str(fpath), columns, [c['value'] for c in columns]
 
 @app.callback([Output('thd-mapper-graph', 'elements'),
                Output('thd-columns-store', 'children')],
               [Input('thd-tree', 'tapNodeData')],
               [State('thd-store', 'children'),
-               State('thd-upload', 'contents')])
-def on_thd_node_select(tapNodeData, groups, contents):
+               State('thd-file-store', 'children')])
+def on_thd_node_select(tapNodeData, groups, fname):
     """
     Called when a node in the THD tree is clicked
     """
@@ -212,7 +219,7 @@ def on_thd_node_select(tapNodeData, groups, contents):
             complex.add_simplex(s['simplex'], data=s['data'], **s['dict'])
         network = complex.get_networkx_network()
 
-        df = contents_to_dataframe(contents)
+        df = load_cached_dataframe(fname)
         elements = networkx_network_to_cytoscape_elements(network, df)
         for col in df.columns:
             vals = [d['data'][col] for d in elements if 'id' in d['data']]
@@ -225,7 +232,8 @@ def on_thd_node_select(tapNodeData, groups, contents):
                Output('thd-tree-column-dropdown', 'options'),
                Output('thd-tree-column-dropdown', 'value')],
               [Input('thd-button', 'n_clicks')],
-              [State('thd-upload', 'contents'),
+              [State('thd-file-store', 'children'),
+               State('thd-columns-dropdown', 'value'),
                State('thd-filter-dropdown', 'value'),
                # Cover parameters
                State('thd-cover-interval-input', 'value'),
@@ -246,7 +254,7 @@ def on_thd_node_select(tapNodeData, groups, contents):
                # Eccentricity parameters
                State('eccentricity-method-dropdown', 'value')
 ])
-def on_run_thd_click(n_clicks, contents, filter_name,
+def on_run_thd_click(n_clicks, fname, columns, filter_name,
                      num_intervals, overlap,
                      clust_method, metric,
                      contract_amount, group_threshold,
@@ -256,19 +264,21 @@ def on_run_thd_click(n_clicks, contents, filter_name,
     Called when a new THD is run
     """
     ctx = dash.callback_context
-    if (not ctx.triggered) or (not contents):
+    if (not ctx.triggered) or (fname == ''):
         return (dash.no_update,)*4
 
     elements = []
 
-    df = contents_to_dataframe(contents)
+    df = load_cached_dataframe(fname)
+    sub_df = df.loc[:, columns]
     n_components = tsne_components if filter_name == 'tsne' else pca_components
     filt = get_filter(filter_name, metric, int(n_components), component_list, eccentricity_method)
-    f_x = filt(df.values)
+    f_x = filt(sub_df.values)
 
     cover = IntervalCover.EvenlySpacedFromValues(f_x, int(num_intervals), float(overlap) / 100)
     clust = HierarchicalClustering(method=clust_method, metric=metric)
-    thd = THD(df, filt, cover, clust, float(contract_amount), int(group_threshold))
+    thd = THD(sub_df, filt, cover, clust, float(contract_amount), int(group_threshold),
+              full_df=df)
 
     group = thd.run()
     g = group.as_igraph_graph(True)
@@ -280,7 +290,6 @@ def on_run_thd_click(n_clicks, contents, filter_name,
     cvs = {}
     for col in df.columns:
         values = [v[col][1] for v in g.vs]
-        print(values)
         cvs[col] = MinMaxScaler(min(values), max(values))
 
     for i, v in enumerate(g.vs):
@@ -304,33 +313,30 @@ def on_run_thd_click(n_clicks, contents, filter_name,
     return elements, serialize_thd(thd), columns, columns[0]['value']
 
 @app.callback(
-        [Output('thd-mapper-node-summary', 'children'),
+        [Output('thd-mapper-node-summary', 'columns'),
+         Output('thd-mapper-node-summary', 'data'),
          Output('thd-mapper-node-data', 'columns'),
          Output('thd-mapper-node-data', 'data')],
         [Input('thd-mapper-graph', 'tapNodeData')],
-        [State('thd-upload', 'contents')])
-def on_thd_network_action(tapNodeData, contents):
+        [State('thd-file-store', 'children')])
+def on_thd_network_action(tapNodeData, fname):
     ctx = dash.callback_context
     if not ctx.triggered:
-        return (dash.no_update,) * 3
+        return (dash.no_update,) * 4
 
     keys = frozenset(['id', 'npoints', 'points', 'density'])
     keys = frozenset(tapNodeData.keys()) - keys
 
-    df = contents_to_dataframe(contents).iloc[tapNodeData['points'], :]
+    df = load_cached_dataframe(fname).iloc[tapNodeData['points'], :]
 
-    summ = [
-        html.Span("Number of Points: {}".format(tapNodeData['npoints'])),
-        html.Div(children=[
-            html.Div([
-                html.B('Average {}: '.format(k)),
-                html.Span('{:.2f}'.format(float(tapNodeData[k])))
-            ]) for k in keys])
-    ]
+
+    summ_df = summarize_dataframe(df)
+    summ_columns = [{'name': c, 'id': c} for c in summ_df.columns]
+    summ_data = summ_df.to_dict('records')
 
     columns = [{'name': c, 'id': c} for c in df.columns]
     data = df.to_dict('records')
-    return summ, columns, data
+    return summ_columns, summ_data, columns, data
 
 @app.callback(
         [Output('thd-tree', 'stylesheet'), 
