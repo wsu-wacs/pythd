@@ -69,7 +69,7 @@ def networkx_network_to_cytoscape_elements(network, df):
 
     return elements
 
-def contents_to_dataframe(contents):
+def contents_to_dataframe(contents, no_index=False, no_header=False):
     """
     Convert the value of a Dash upload component (CSV or zipped CSV) into a Pandas dataframe
 
@@ -92,12 +92,12 @@ def contents_to_dataframe(contents):
     contents = contents[1]
     contents = base64.b64decode(contents, validate=True)
 
-    if 'zip' in content_type[0]:
-        with io.BytesIO(contents) as f:
-            df = pd.read_csv(f, header=0, index_col=0, compression='zip')
-    else:
-        with io.StringIO(contents.decode('utf-8')) as f:
-            df = pd.read_csv(f, header=0, index_col=0)
+    compression = 'zip' if ('zip' in content_type[0]) else 'infer'
+    index_col = None if no_index else 0
+    header = None if no_header else 0
+
+    with io.BytesIO(contents) as f:
+        df = pd.read_csv(f, header=header, index_col=index_col, compression=compression)
     return df
 
 def make_dataframe_token(df):

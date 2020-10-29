@@ -7,6 +7,7 @@ import dash
 import dash_core_components as dcc
 import dash_html_components as html
 import dash_cytoscape as cyto
+from dash_table import DataTable
 from dash.dependencies import Input, Output, State, ClientsideFunction
 
 from ..app import app
@@ -93,7 +94,9 @@ layout = html.Div(style=dict(height='100%'), children=[
             html.H3('Group Selection'),
             html.Div(style=dict(display='grid', gridTemplateColumns='50% 50%'), children=[
                 html.Div(style=dict(gridColumn='1 / 2'), children=[
-                    html.H4('Summary')
+                    html.H4('Summary'),
+                    DataTable(id='thd-group-summary',
+                              page_size=10)
                 ]),
                 html.Div(style=dict(gridColumn='2 / 3'), children=[
                 ])
@@ -167,33 +170,47 @@ def on_thd_mapper_coloring_change(coloring, column, stylesheet, columns):
             info = '{} ({:.2f}, {:.2f}); '.format(column, minv, maxv)
     return stylesheet, hide_show, info
 
-@app.callback([Output('thd-upload-div', 'children'),
-               Output('thd-mapper-coloring-column-dropdown', 'options'),
+@app.callback(Output('thd-upload-div', 'children'),
+              [Input('thd-upload', 'filename')])
+def on_thd_upload_change(filename):
+    ctx = dash.callback_context
+    if (not ctx.triggered) or (filename == ''):
+        return ''
+
+    display = 'Selected file: ' + str(filename)
+    return display
+
+@app.callback([Output('thd-mapper-coloring-column-dropdown', 'options'),
                Output('thd-mapper-coloring-column-dropdown', 'value'),
                Output('thd-mapper-data-info-span', 'children'),
                Output('thd-file-store', 'children'),
                Output('thd-columns-dropdown', 'options'),
                Output('thd-columns-dropdown', 'value')],
-              [Input('thd-upload', 'contents')],
-              [State('thd-upload', 'filename')])
-def on_thd_upload_change(contents, filename):
+              [Input('thd-upload-button', 'n_clicks')],
+              [State('thd-upload', 'contents'),
+               State('thd-upload', 'filename'),
+               State('thd-upload-check', 'value')])
+def on_thd_upload_click(n_clicks, contents, filename, options):
     """
     Called when a data file is uploaded
     """
     ctx = dash.callback_context
-    if (not ctx.triggered) or (contents == ''):
-        return (dash.no_update,)*7
+    if (not ctx.triggered) or (contents == '') or (n_clicks == 0):
+        return (dash.no_update,)*6
 
-    display = 'Uploaded file: {}'.format(filename)
-    df = contents_to_dataframe(contents)
+    no_index = 'no_index' in options
+    df = contents_to_dataframe(contents, no_index=no_index)
+
     info = '{}; {} rows, {} columns'.format(Path(filename).name, df.shape[0], df.shape[1])
     columns = [{'label': col, 'value': col} for col in df.columns]
     fpath = make_dataframe_token(df)
 
-    return display, columns, columns[0]['value'], info, str(fpath), columns, [c['value'] for c in columns]
+    return columns, columns[0]['value'], info, str(fpath), columns, [c['value'] for c in columns]
 
 @app.callback([Output('thd-mapper-graph', 'elements'),
-               Output('thd-columns-store', 'children')],
+               Output('thd-columns-store', 'children'),
+               Output('thd-group-summary', 'columns'),
+               Output('thd-group-summary', 'data')],
               [Input('thd-tree', 'tapNodeData')],
               [State('thd-store', 'children'),
                State('thd-file-store', 'children')])
@@ -203,10 +220,12 @@ def on_thd_node_select(tapNodeData, groups, fname):
     """
     ctx = dash.callback_context
     if not ctx.triggered:
-        return (dash.no_update,)*2
+        return (dash.no_update,)*4
 
     elements = []
     columns = {}
+    summ_columns = []
+    summ_data = []
 
     group_name = tapNodeData['id']
     groups = deserialize_thd(groups).get('groups', {})
@@ -225,7 +244,12 @@ def on_thd_node_select(tapNodeData, groups, fname):
             vals = [d['data'][col] for d in elements if 'id' in d['data']]
             columns[col] = (min(vals), max(vals))
 
-    return elements, json.dumps(columns)
+        df = df.iloc[group['rids'], :]
+        summ_df = summarize_dataframe(df)
+        summ_columns = [{'name': c, 'id': c} for c in summ_df.columns]
+        summ_data = summ_df.to_dict('records')
+
+    return elements, json.dumps(columns), summ_columns, summ_data
 
 @app.callback([Output('thd-tree', 'elements'),
                Output('thd-store', 'children'),

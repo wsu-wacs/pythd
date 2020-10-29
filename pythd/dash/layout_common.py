@@ -87,7 +87,15 @@ def make_upload_div(name='mapper-upload', style={}):
           children=html.Div([
             html.Div(id=name+'-div', children='Drop a file here or click to select file.'),
             html.Button('Select file...', id=name+'-button', n_clicks=0)
-        ]))
+        ])),
+        dcc.Checklist(
+            id=name+'-check',
+            options=[{'label': 'No index column', 'value': 'no_index'}],
+            value=[]),
+        html.Button(
+            'Upload',
+            id=name+'-button',
+            n_clicks=0)
     ])
 
 def make_columns_div(name='mapper-columns', style={}):
