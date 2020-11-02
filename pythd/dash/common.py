@@ -12,7 +12,8 @@ from ..filter import *
 from .config import *
 
 __all__ = ['get_filter', 'networkx_network_to_cytoscape_elements', 'contents_to_dataframe',
-           'make_dataframe_token', 'load_cached_dataframe', 'summarize_dataframe']
+           'make_dataframe_token', 'load_cached_dataframe', 'summarize_dataframe',
+           'handle_upload_options']
 
 def get_filter(name, metric, n_components=2, component_list=[0], eccentricity_method='mean'):
     """
@@ -158,4 +159,21 @@ def summarize_dataframe(df):
             'max': df.max(axis=0)
         },
         index=df.columns)
+
+def handle_upload_options(options):
+    """
+    Process upload options from the list of checked values returned from Dash
+
+    Parameters
+    ----------
+    options : list
+        The list of selected options
+
+    Returns
+    -------
+    dict
+        A dictionary suitable for passing as kwargs to contents_to_dataframe
+    """
+    all_options = ['no_index', 'no_header']
+    return {o: o in options for o in all_options}
 

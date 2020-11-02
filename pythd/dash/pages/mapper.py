@@ -32,7 +32,8 @@ layout = html.Div(style=dict(height='100%'), children=[
              children=[
         # Left bar
         html.Div(style=dict(gridColumn='1 / 2', gridRow='1 / 3', borderRightStyle="solid"), children=[
-            make_upload_div(), html.Hr(),
+            make_upload_div(), 
+            make_columns_div(name='mapper-columns'),
             make_filter_div(), html.Hr(),
             make_cover_div(), html.Hr(),
             make_clustering_div(), html.Hr(),
@@ -52,7 +53,8 @@ layout = html.Div(style=dict(height='100%'), children=[
     # Hidden divs for callback outputs
     html.Div(id='bit-bucket-1', style=dict(display='none')),
     # Hidden divs to store information
-    html.Div(id='columns-store', style=dict(display='none'), children=json.dumps({}))
+    html.Div(id='columns-store', style=dict(display='none'), children=json.dumps({})),
+    html.Div(id='mapper-file-store', style=dict(display='none'), children='')
 ])
 
 ################################################################################
@@ -67,22 +69,40 @@ app.clientside_callback(
         [Input('filter-dropdown', 'value')]
 )
 
-@app.callback([Output('mapper-upload-div', 'children'),
-               Output('network-coloring-column-dropdown', 'options'),
-               Output('network-coloring-column-dropdown', 'value'),
-               Output('mapper-data-info-span', 'children')],
+@app.callback(Output('mapper-upload-div', 'children'),
               [Input('mapper-upload', 'contents')],
               [State('mapper-upload', 'filename')])
 def on_mapper_upload_change(contents, filename):
     ctx = dash.callback_context
     if not ctx.triggered:
-        return (dash.no_update,)*4
+        return dash.no_update
     
-    display = 'Uploaded file: {}'.format(filename)
-    df = contents_to_dataframe(contents)
+    display = 'Selected file: {}'.format(filename)
+    return display
+
+@app.callback([Output('network-coloring-column-dropdown', 'options'),
+               Output('network-coloring-column-dropdown', 'value'),
+               Output('mapper-data-info-span', 'children'),
+               Output('mapper-file-store', 'children'),
+               Output('mapper-columns-dropdown', 'options'),
+               Output('mapper-columns-dropdown', 'value')],
+              [Input('mapper-upload-button', 'n_clicks')],
+              [State('mapper-upload', 'contents'),
+               State('mapper-upload', 'filename'),
+               State('mapper-upload-check', 'value')])
+def on_mapper_upload_click(n_clicks, contents, filename, options):
+    ctx = dash.callback_context
+    if (not ctx.triggered) or (contents == '') or (n_clicks == 0):
+        return (dash.no_update,)*6
+
+    options = handle_upload_options(options)
+    df = contents_to_dataframe(contents, **options)
+
     info = '{}; {} rows, {} columns'.format(Path(filename).name, df.shape[0], df.shape[1])
     columns = [{'label': col, 'value': col} for col in df.columns]
-    return display, columns, columns[0]['value'], info
+    fpath = make_dataframe_token(df)
+
+    return columns, columns[0]['value'], info, str(fpath), columns, [c['value'] for c in columns]
 
 @app.callback([Output('mapper-graph', 'stylesheet'),
                Output('network-coloring-params-div', 'style'),
@@ -123,7 +143,8 @@ def on_network_coloring_change(coloring, column, stylesheet, columns):
                Output('columns-store', 'children'),
                Output('mapper-network-info-span', 'children')],
              [Input('mapper-button', 'n_clicks')],
-             [State('mapper-upload', 'contents'),
+             [State('mapper-file-store', 'children'),
+              State('mapper-columns-dropdown', 'value'),
               State('filter-dropdown', 'value'),
               # Cover parameters
               State('cover-interval-input', 'value'),
@@ -141,28 +162,28 @@ def on_network_coloring_change(coloring, column, stylesheet, columns):
               # Eccentricity parameters
               State('eccentricity-method-dropdown', 'value')
 ])
-def on_run_mapper_click(n_clicks, contents, filter_name, 
+def on_run_mapper_click(n_clicks, fname, columns, filter_name, 
                         num_intervals, overlap,
                         clust_method, metric,
-                        *args):
+                        tsne_components, pca_components,
+                        component_list, eccentricity_method):
     ctx = dash.callback_context
-    if (not ctx.triggered) or (not contents):
+    if (not ctx.triggered) or (not fname):
         return (dash.no_update,) * 3
     
     elements = []
 
-    df = contents_to_dataframe(contents)
+    df = load_cached_dataframe(fname)
+    sub_df = df.loc[:, columns]
 
-    n_components = args[0] if filter_name == 'tsne' else args[1]
-    component_list = args[2]
-    eccentricity_method = args[3]
+    n_components = tsne_components if filter_name == 'tsne' else pca_components
     filt = get_filter(filter_name, metric, n_components, component_list, eccentricity_method)
-    f_x = filt(df.values)
+    f_x = filt(sub_df.values)
 
     cover = IntervalCover.EvenlySpacedFromValues(f_x, int(num_intervals), float(overlap) / 100)
     clust = HierarchicalClustering(method=clust_method, metric=metric)
     mapper = MAPPER(filter=filt, cover=cover, clustering=clust)
-    result = mapper.run(df.values, f_x=f_x)
+    result = mapper.run(sub_df.values, f_x=f_x)
     network = result.get_networkx_network()
     elements = networkx_network_to_cytoscape_elements(network, df)
 
@@ -176,31 +197,27 @@ def on_run_mapper_click(n_clicks, contents, filter_name,
     return elements, json.dumps(columns), info
 
 @app.callback(
-        [Output('mapper-node-summary', 'children'),
+        [Output('mapper-node-summary', 'columns'),
+         Output('mapper-node-summary', 'data'),
          Output('mapper-node-data', 'columns'),
          Output('mapper-node-data', 'data')],
         [Input('mapper-graph', 'tapNodeData')],
-        [State('mapper-upload', 'contents')])
-def on_network_action(tapNodeData, contents):
+        [State('mapper-file-store', 'children')])
+def on_network_action(tapNodeData, fname):
     ctx = dash.callback_context
     if not ctx.triggered:
-        return (dash.no_update,) * 3
+        return (dash.no_update,) * 4
 
     keys = frozenset(['id', 'npoints', 'points', 'density'])
     keys = frozenset(tapNodeData.keys()) - keys
 
-    df = contents_to_dataframe(contents).iloc[tapNodeData['points'], :]
+    df = load_cached_dataframe(fname).iloc[tapNodeData['points'], :]
 
-    summ = [
-        html.Span("Number of Points: {}".format(tapNodeData['npoints'])),
-        html.Div(children=[
-            html.Div([
-                html.B('Average {}: '.format(k)),
-                html.Span('{:.2f}'.format(float(tapNodeData[k])))
-            ]) for k in keys])
-    ]
+    summ_df = summarize_dataframe(df)
+    summ_columns = [{'name': c, 'id': c} for c in summ_df.columns]
+    summ_data = summ_df.to_dict('records')
 
     columns = [{'name': c, 'id': c} for c in df.columns]
     data = df.to_dict('records')
-    return summ, columns, data
+    return summ_columns, summ_data, columns, data
 

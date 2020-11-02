@@ -198,8 +198,8 @@ def on_thd_upload_click(n_clicks, contents, filename, options):
     if (not ctx.triggered) or (contents == '') or (n_clicks == 0):
         return (dash.no_update,)*6
 
-    no_index = 'no_index' in options
-    df = contents_to_dataframe(contents, no_index=no_index)
+    options = handle_upload_options(options)
+    df = contents_to_dataframe(contents, **options)
 
     info = '{}; {} rows, {} columns'.format(Path(filename).name, df.shape[0], df.shape[1])
     columns = [{'label': col, 'value': col} for col in df.columns]

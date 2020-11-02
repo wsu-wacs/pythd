@@ -90,7 +90,8 @@ def make_upload_div(name='mapper-upload', style={}):
         ])),
         dcc.Checklist(
             id=name+'-check',
-            options=[{'label': 'No index column', 'value': 'no_index'}],
+            options=[{'label': 'No index column', 'value': 'no_index'},
+                     {'label': 'No header', 'value': 'no_header'}],
             value=[]),
         html.Button(
             'Upload',
