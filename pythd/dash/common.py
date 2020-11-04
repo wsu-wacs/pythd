@@ -52,6 +52,7 @@ def networkx_network_to_cytoscape_elements(network, df):
 
     for n in network.nodes:
         node = network.nodes[n]
+        sub_df = df.iloc[node['points'], :]
         d = {
                 'data': {'id': n,
                          'points': list(node['points']),
@@ -60,7 +61,7 @@ def networkx_network_to_cytoscape_elements(network, df):
             }}
 
         d['data'].update({
-            col: df.loc[node['points'], col].mean()
+            col: sub_df.loc[:, col].mean()
             for col in df.columns
         })
         elements.append(d)
@@ -99,6 +100,21 @@ def contents_to_dataframe(contents, no_index=False, no_header=False):
 
     with io.BytesIO(contents) as f:
         df = pd.read_csv(f, header=header, index_col=index_col, compression=compression)
+
+    # Process non-numerical columns
+    # for now, just one-hot encode (TODO: add option to select beteween this and converting to ints)
+    new_cols = []
+    drop_cols = []
+    for ci, dtype in enumerate(list(df.dtypes)):
+        if dtype.kind in ['O','S']:
+            cname = df.columns[ci]
+            dummies = pd.get_dummies(df[cname], prefix=cname)
+            new_cols.append(dummies)
+            drop_cols.append(cname)
+    df.drop(columns=drop_cols, inplace=True)
+    if len(new_cols) > 0:
+        new_cols = pd.concat(new_cols, axis=1)
+        df = pd.concat((df, new_cols), axis=1)
     return df
 
 def make_dataframe_token(df):

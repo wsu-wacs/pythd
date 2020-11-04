@@ -306,13 +306,14 @@ def on_run_thd_click(n_clicks, fname, columns, filter_name,
 
     group = thd.run()
     g = group.as_igraph_graph(True)
+    avail_cols = frozenset(g.vs[0].attributes().keys()) & frozenset(df.columns)
     layout = g.layout_reingold_tilford()
     layout.scale(150)
 
     nrows = [v['num_rows'] for v in g.vs]
     rowsc = MinMaxScaler(min(nrows), max(nrows))
     cvs = {}
-    for col in df.columns:
+    for col in avail_cols:
         values = [v[col][1] for v in g.vs]
         cvs[col] = MinMaxScaler(min(values), max(values))
 
@@ -323,7 +324,7 @@ def on_run_thd_click(n_clicks, fname, columns, filter_name,
                 'position': {'x': layout[i][0], 'y': layout[i][1]}
         }
         d['data'].update({col: cvs[col].scale(v[col][1])
-                          for col in df.columns})
+                          for col in avail_cols})
 
         elements.append(d)
 
@@ -352,7 +353,6 @@ def on_thd_network_action(tapNodeData, fname):
     keys = frozenset(tapNodeData.keys()) - keys
 
     df = load_cached_dataframe(fname).iloc[tapNodeData['points'], :]
-
 
     summ_df = summarize_dataframe(df)
     summ_columns = [{'name': c, 'id': c} for c in summ_df.columns]
