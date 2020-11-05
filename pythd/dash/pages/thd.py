@@ -96,7 +96,8 @@ layout = html.Div(style=dict(height='100%'), children=[
                 html.Div(style=dict(gridColumn='1 / 2'), children=[
                     html.H4('Summary'),
                     DataTable(id='thd-group-summary',
-                              page_size=10)
+                              page_size=10,
+                              **DATATABLE_STYLE)
                 ]),
                 html.Div(style=dict(gridColumn='2 / 3'), children=[
                 ])
@@ -245,9 +246,7 @@ def on_thd_node_select(tapNodeData, groups, fname):
             columns[col] = (min(vals), max(vals))
 
         df = df.iloc[group['rids'], :]
-        summ_df = summarize_dataframe(df)
-        summ_columns = [{'name': c, 'id': c} for c in summ_df.columns]
-        summ_data = summ_df.to_dict('records')
+        summ_columns, summ_data = make_datatable_info(summarize_dataframe(df))
 
     return elements, json.dumps(columns), summ_columns, summ_data
 
@@ -355,11 +354,9 @@ def on_thd_network_action(tapNodeData, fname):
     df = load_cached_dataframe(fname).iloc[tapNodeData['points'], :]
 
     summ_df = summarize_dataframe(df)
-    summ_columns = [{'name': c, 'id': c} for c in summ_df.columns]
-    summ_data = summ_df.to_dict('records')
+    summ_columns, summ_data = make_datatable_info(summarize_dataframe(df))
+    columns, data = make_datatable_info(df)
 
-    columns = [{'name': c, 'id': c} for c in df.columns]
-    data = df.to_dict('records')
     return summ_columns, summ_data, columns, data
 
 @app.callback(

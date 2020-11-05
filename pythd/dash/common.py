@@ -13,7 +13,7 @@ from .config import *
 
 __all__ = ['get_filter', 'networkx_network_to_cytoscape_elements', 'contents_to_dataframe',
            'make_dataframe_token', 'load_cached_dataframe', 'summarize_dataframe',
-           'handle_upload_options']
+           'handle_upload_options', 'make_datatable_info']
 
 def get_filter(name, metric, n_components=2, component_list=[0], eccentricity_method='mean'):
     """
@@ -192,4 +192,30 @@ def handle_upload_options(options):
     """
     all_options = ['no_index', 'no_header']
     return {o: o in options for o in all_options}
+
+def make_datatable_info(df):
+    columns = []
+    for i, c in enumerate(df.columns):
+        dtype = df.dtypes[i]
+        d = {'name': c, 'id': c}
+        # column type
+        if dtype.kind in ['i', 'u', 'f']:
+            d['type'] = 'numeric'
+        elif dtype.kind in ['S', 'U', 'O']:
+            d['type'] = 'text'
+        elif dtype.kind in ['m', 'M']:
+            d['type'] = 'datetime'
+        else:
+            d['type'] = 'any'
+
+        if dtype.kind == 'f':
+            d['format'] = {
+                'specifier': '.4f'
+            }
+
+            
+        columns.append(d)
+
+    data = df.to_dict('records')
+    return columns, data
 

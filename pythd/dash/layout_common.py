@@ -10,7 +10,7 @@ from dash_table import DataTable
 
 __all__ = ['make_filter_params', 'make_upload_div', 'make_filter_div', 'make_columns_div',
            'make_cover_div', 'make_clustering_div', 'make_network_settings_div',
-           'make_network_view_div', 'colorings', 'make_node_info_div']
+           'make_network_view_div', 'colorings', 'make_node_info_div', 'DATATABLE_STYLE']
 
 colorings = {
     'density': {
@@ -18,6 +18,22 @@ colorings = {
         'style': {
             'background-color': 'mapData(density, 0, 1, blue, red)'
         }
+    }
+}
+
+DATATABLE_STYLE = {
+    'style_table': {
+        'overflowX': 'auto'
+    },
+
+    'style_cell': {
+        'height': 'auto',
+        'whiteSpace': 'normal'
+    },
+
+    'style_data': {
+        'whiteSpace': 'normal',
+        'height': 'auto'
     }
 }
 
@@ -299,14 +315,16 @@ def make_node_info_div(name='mapper', style={}):
                 DataTable(id=name+'-node-summary',
                           page_size=10,
                           columns=[],
-                          data=[])
+                          data=[],
+                          **DATATABLE_STYLE)
             ]),
             html.Div(style=dict(gridColumn='2 / 3'), children=[
                 html.H4('Data'),
                 DataTable(id=name+'-node-data',
                           page_size=10,
                           columns=[],
-                          data=[])
+                          data=[],
+                          **DATATABLE_STYLE)
             ])
         ])
     ])
