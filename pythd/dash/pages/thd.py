@@ -1,4 +1,5 @@
 from pathlib import Path
+from urllib.parse import urlencode
 import json
 
 import pandas as pd
@@ -28,8 +29,7 @@ layout = html.Div(style=dict(height='100%'), children=[
     # Main content div
     html.Div(style=dict(display='grid',
                         gridTemplateColumns='20% auto',
-                        gridTemplateRows='25% 25% auto auto',
-                        height='100%'),
+                        gridTemplateRows='25% 25% auto auto'),
              children=[
         # Left bar
         html.Div(style=dict(gridColumn='1 / 2', gridRow='1 / 5', borderRightStyle='solid'), children=[
@@ -55,21 +55,14 @@ layout = html.Div(style=dict(height='100%'), children=[
 
                 html.H3('THD Tree Settings'),
                 html.Span('Tree coloring: '),
-                dcc.Dropdown(id='thd-tree-color-dropdown',
-                             searchable=False,
-                             value='none',
+                make_dropdown(cid='thd-tree-color-dropdown',
                              options=[
                                  {'label': 'None', 'value': 'none'},
                                  {'label': 'Density', 'value': 'density'},
-                                 {'label': 'Column', 'value': 'column'}
-                             ]),
+                                 {'label': 'Column', 'value': 'column'}]),
                 html.Div(id='thd-tree-coloring-div', style=dict(display='none'), children=[
                     html.Span('Column:'),
-                    dcc.Dropdown(id='thd-tree-column-dropdown',
-                                 searchable=False,
-                                 value='',
-                                 options=[])
-                ])
+                    make_dropdown(cid='thd-tree-column-dropdown')])
             ]),
             # THD Tree view
             html.Div(style=dict(borderTopStyle='solid'), children=[
@@ -92,6 +85,7 @@ layout = html.Div(style=dict(height='100%'), children=[
 
         html.Div(style=dict(gridColumn='2 / 3', gridRow='4 / 5'), children=[
             html.H3('Group Selection'),
+            html.Div(id='group-selection-summary'),
             html.Div(style=dict(display='grid', gridTemplateColumns='50% 50%'), children=[
                 html.Div(style=dict(gridColumn='1 / 2'), children=[
                     html.H4('Summary'),
@@ -105,12 +99,35 @@ layout = html.Div(style=dict(height='100%'), children=[
         ])
 
     ]),
+    html.Hr(),
+    # Group comparison
+    html.Div([
+        html.H2('Group Comparison'),
+        html.Div(style=dict(display='grid', gridTemplateColumns='25% 25% 25% 25%'), children=[
+            html.Div(style=dict(gridColumn='1 / 3'), children=[
+                html.H3('First Group'),
+                dcc.Dropdown(id='group1-dropdown', clearable=False),
+                html.Br()
+            ]),
+            html.Div(style=dict(gridColumn='3 / 5'), children=[
+                html.H3('Second Group'),
+                dcc.Dropdown(id='group2-dropdown'),
+                html.Br()
+            ]),
+            html.Div(style=dict(gridColumn='2 / 4', textAlign='center'), children=[
+                html.Button('Compare', id='group-compare-button', n_clicks=0)
+            ])
+        ])
+    ]),
+    html.Br(), html.Br(), html.Hr(),
     # Hidden divs for storage
     html.Div(id='thd-store', style=dict(display='none'), children=json.dumps({})),
     html.Div(id='thd-columns-store', style=dict(display='none'), children=json.dumps({})),
     html.Div(id='thd-file-store', style=dict(display='none'), children=''),
+    html.Div(id='group-compare-url', style=dict(display='none'), children=''),
     # Hidden divs for callback outputs
-    html.Div(id='thd-bitbucket-1', style=dict(display='none'))
+    html.Div(id='thd-bitbucket-1', style=dict(display='none')),
+    html.Div(id='thd-bitbucket-2', style=dict(display='none'))
 ])
 
 ################################################################################
@@ -134,6 +151,15 @@ app.clientside_callback(
             function_name='selectFilter'),
         Output('thd-bitbucket-1', 'children'),
         [Input('thd-filter-dropdown', 'value')]
+)
+
+# Javascript callback to open the compare groups page
+app.clientside_callback(
+        ClientsideFunction(
+            namespace='clientside',
+            function_name='compareGroups'),
+        Output('thd-bitbucket-2', 'children'),
+        [Input('group-compare-url', 'children')]
 )
 
 @app.callback([Output('thd-mapper-graph', 'stylesheet'),
@@ -211,7 +237,8 @@ def on_thd_upload_click(n_clicks, contents, filename, options):
 @app.callback([Output('thd-mapper-graph', 'elements'),
                Output('thd-columns-store', 'children'),
                Output('thd-group-summary', 'columns'),
-               Output('thd-group-summary', 'data')],
+               Output('thd-group-summary', 'data'),
+               Output('group-selection-summary', 'children')],
               [Input('thd-tree', 'tapNodeData')],
               [State('thd-store', 'children'),
                State('thd-file-store', 'children')])
@@ -221,12 +248,13 @@ def on_thd_node_select(tapNodeData, groups, fname):
     """
     ctx = dash.callback_context
     if not ctx.triggered:
-        return (dash.no_update,)*4
+        return (dash.no_update,)*5
 
     elements = []
     columns = {}
     summ_columns = []
     summ_data = []
+    summ_div = []
 
     group_name = tapNodeData['id']
     groups = deserialize_thd(groups).get('groups', {})
@@ -248,12 +276,20 @@ def on_thd_node_select(tapNodeData, groups, fname):
         df = df.iloc[group['rids'], :]
         summ_columns, summ_data = make_datatable_info(summarize_dataframe(df))
 
-    return elements, json.dumps(columns), summ_columns, summ_data
+        summ_div = [
+                html.Div('Group name: ' + group_name)
+        ]
+
+    return elements, json.dumps(columns), summ_columns, summ_data, summ_div
 
 @app.callback([Output('thd-tree', 'elements'),
                Output('thd-store', 'children'),
                Output('thd-tree-column-dropdown', 'options'),
-               Output('thd-tree-column-dropdown', 'value')],
+               Output('thd-tree-column-dropdown', 'value'),
+               Output('group1-dropdown', 'options'),
+               Output('group2-dropdown', 'options'),
+               Output('group1-dropdown', 'value'),
+               Output('group2-dropdown', 'value')],
               [Input('thd-button', 'n_clicks')],
               [State('thd-file-store', 'children'),
                State('thd-columns-dropdown', 'value'),
@@ -288,7 +324,7 @@ def on_run_thd_click(n_clicks, fname, columns, filter_name,
     """
     ctx = dash.callback_context
     if (not ctx.triggered) or (fname == ''):
-        return (dash.no_update,)*4
+        return (dash.no_update,)*8
 
     elements = []
 
@@ -334,7 +370,11 @@ def on_run_thd_click(n_clicks, fname, columns, filter_name,
 
     columns = [{'label': col, 'value': col} for col in df.columns]
 
-    return elements, serialize_thd(thd), columns, columns[0]['value']
+    options = [{'label': 'All of data', 'value': 'all'}, {'label': 'Rest of data', 'value': 'rest'}]
+    options += [{'label': g.get_name(), 'value': g.get_name()} for g in group]
+
+    return (elements, serialize_thd(thd), columns, columns[0]['value'], 
+            options, options, options[2]['value'], options[1]['value'])
 
 @app.callback(
         [Output('thd-mapper-node-summary', 'columns'),
@@ -408,3 +448,30 @@ def handle_thd_tree_coloring(color_value, thd, column, stylesheet):
 
     return stylesheet, hideshow
 
+@app.callback(Output('group-compare-url', 'children'),
+              [Input('group-compare-button', 'n_clicks')],
+              [State('thd-file-store', 'children'),
+               State('group1-dropdown', 'value'),
+               State('group2-dropdown', 'value'),
+               State('thd-store', 'children')])
+def on_group_compare_click(n_clicks, fname, group1, group2, groups):
+    ctx = dash.callback_context
+    if (not ctx.triggered) or (n_clicks == 0):
+        return dash.no_update
+
+    groups = deserialize_thd(groups).get('groups', {})
+    if not ('0.0.0' in groups):
+        return dash.no_update
+
+    if group1 == 'all':
+        group1 = groups['0.0.0']['rids']
+    if group2 == 'all':
+        group2 = groups['0.0.0']['rids']
+
+    query={
+        'file': fname,
+        'g1': ','.join(map(str, groups.get(group1, {}).get('rids', []))),
+        'g2': ','.join(map(str, groups.get(group2, {}).get('rids', [])))
+    }
+    url = '/compare?' + urlencode(query)
+    return url

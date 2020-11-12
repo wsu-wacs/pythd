@@ -10,7 +10,7 @@ from dash_table import DataTable
 
 __all__ = ['make_filter_params', 'make_upload_div', 'make_filter_div', 'make_columns_div',
            'make_cover_div', 'make_clustering_div', 'make_network_settings_div',
-           'make_network_view_div', 'colorings', 'make_node_info_div', 'DATATABLE_STYLE']
+           'make_network_view_div', 'colorings', 'make_node_info_div', 'DATATABLE_STYLE', 'make_dropdown']
 
 colorings = {
     'density': {
@@ -36,6 +36,27 @@ DATATABLE_STYLE = {
         'height': 'auto'
     }
 }
+
+def make_dropdown(cid, clearable=False, multi=False, searchable=False, options=[], value=None, **kwargs):
+    """
+    Make a dropdown with the most common settings used across the dashboard.
+
+    The remaining parameters are the same as the dash_core_components.Dropdown method
+
+    Parameters
+    ----------
+    cid : str
+        The id of the dropdown
+
+    Returns
+    -------
+    dash_core_components.Dropdown
+    """
+    if value is None and len(options) > 0:
+        value = options[0].get('value')
+
+    return dcc.Dropdown(id=cid, clearable=clearable, multi=multi, searchable=searchable,
+                        options=options, value=value, **kwargs)
 
 def make_filter_params():
     """
@@ -71,14 +92,9 @@ def make_filter_params():
         ], style=dict(display='none')),
         html.Div(id='eccentricity-params-div', children=[
             html.Span('Method: '),
-            dcc.Dropdown(id='eccentricity-method-dropdown',
-                searchable=False,
-                clearable=False,
-                value='mean',
-                options=[
-                    {'label': 'Mean', 'value': 'mean'},
-                    {'label': 'Medoid', 'value': 'medoid'}
-                ]),
+            make_dropdown(cid='eccentricity-method-dropdown', options=[
+                {'label': 'Mean', 'value': 'mean'},
+                {'label': 'Medoid', 'value': 'medoid'}]),
         ], style=dict(display='none'))
     ])
 
@@ -143,17 +159,14 @@ def make_filter_div(name='filter', style={}):
     """
     return html.Div(style=style, children=[
             html.H4('Filter'),
-            dcc.Dropdown(id=name + '-dropdown',
-                searchable=False,
-                clearable=False,
+            make_dropdown(cid=name + '-dropdown',
                 value='pca',
                 options=[
                     {'label': 'tSNE', 'value': 'tsne'},
                     {'label': 'PCA', 'value': 'pca'},
                     {'label': 'Identity', 'value': 'identity'},
                     {'label': 'Component', 'value': 'component'},
-                    {'label': 'Eccentricity', 'value': 'eccentricity'}
-                ]),
+                    {'label': 'Eccentricity', 'value': 'eccentricity'}]),
             make_filter_params(),
     ])
 
@@ -207,32 +220,24 @@ def make_clustering_div(name='cluster', style={}):
     return html.Div(style=style, children=[
             html.H4('Clustering'),
             html.Span('Method: '),
-            dcc.Dropdown(id=name + '-method-dropdown',
-                clearable=False,
-                searchable=False,
-                value='single',
-                options=[
-                    {'label': 'Single Linkage', 'value': 'single'},
-                    {'label': 'Complete Linkage', 'value': 'complete'},
-                    {'label': 'Average Linkage', 'value': 'average'},
-                    {'label': 'Weighted', 'value': 'weighted'},
-                    {'label': 'Centroid', 'value': 'centroid'},
-                    {'label': 'Median', 'value': 'median'},
-                    {'label': 'Ward', 'value': 'ward'}
-                ]),
+            make_dropdown(cid=name + '-method-dropdown',
+                        options=[
+                            {'label': 'Single Linkage', 'value': 'single'},
+                            {'label': 'Complete Linkage', 'value': 'complete'},
+                            {'label': 'Average Linkage', 'value': 'average'},
+                            {'label': 'Weighted', 'value': 'weighted'},
+                            {'label': 'Centroid', 'value': 'centroid'},
+                            {'label': 'Median', 'value': 'median'},
+                            {'label': 'Ward', 'value': 'ward'}]),
             html.Span('Metric: '),
-            dcc.Dropdown(id=name + '-metric-dropdown',
-                clearable=False,
-                searchable=False,
-                value='euclidean',
+            make_dropdown(cid=name + '-metric-dropdown',
                 options=[
                     {'label': 'Euclidean', 'value': 'euclidean'},
                     {'label': 'Manhattan', 'value': 'manhattan'},
                     {'label': 'Standardized Euclidean', 'value': 'seuclidean'},
                     {'label': 'Cosine', 'value': 'cosine'},
                     {'label': 'Correlation', 'value': 'correlation'},
-                    {'label': 'Chebyshev', 'value': 'chebyshev'}
-                ])])
+                    {'label': 'Chebyshev', 'value': 'chebyshev'}])])
 
 def make_network_settings_div(name='network', style={}):
     """
@@ -252,21 +257,15 @@ def make_network_settings_div(name='network', style={}):
     return html.Div(style=style, children=[
             html.H4('Network View'),
             html.Span('Layout Algorithm: '),
-            dcc.Dropdown(id=name + '-layout-dropdown',
-                clearable=False,
-                value='cose',
+            make_dropdown(cid=name + '-layout-dropdown',
                 options=[
-                    {'label': 'COSE', 'value': 'cose'}
-                ]),
+                    {'label': 'COSE', 'value': 'cose'}]),
             html.Span('Node Coloring: '),
-            dcc.Dropdown(id=name + '-coloring-dropdown',
-                clearable=False,
-                value='density',
+            make_dropdown(cid=name + '-coloring-dropdown',
                 options=[
                     {'label': 'None', 'value': 'none'},
                     {'label': 'Point Density', 'value': 'density'},
-                    {'label': 'Column', 'value': 'column'}
-                ]),
+                    {'label': 'Column', 'value': 'column'}]),
             html.Div(id=name + '-coloring-params-div', style=dict(display='none'), children=[
                 html.Span('Column: '),
                 dcc.Dropdown(id=name + '-coloring-column-dropdown', options=[], clearable=False)
@@ -325,7 +324,5 @@ def make_node_info_div(name='mapper', style={}):
                           columns=[],
                           data=[],
                           **DATATABLE_STYLE)
-            ])
-        ])
-    ])
+    ])])])
 

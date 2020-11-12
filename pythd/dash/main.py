@@ -1,3 +1,5 @@
+from urllib.parse import parse_qs
+
 import dash
 import dash_core_components as dcc
 import dash_html_components as html
@@ -23,14 +25,24 @@ app.layout = html.Div([
 ])
 
 @app.callback(Output('page-content', 'children'),
-             [Input('url', 'pathname')])
-def display_page(pathname):
+             [Input('url', 'pathname')],
+             [State('url', 'search'),
+              State('url', 'hash')])
+def display_page(pathname, search, hashv):
     if pathname == '/':
         return []
     elif pathname == '/mapper':
         return page_mapper.layout
     elif pathname == '/thd':
         return page_thd.layout
+    elif pathname == '/compare':
+        if search[0] == '?':
+            search = search[1:]
+        qs = {k: v[0] for k,v in parse_qs(search).items()}
+        qs['g1'] = [int(i) for i in qs.get('g1', '').split(',')]
+        qs['g2'] = [int(i) for i in  qs.get('g2', '').split(',')]
+        print(qs)
+        return []
     else:
         return 'page not found: {}'.format(pathname)
 

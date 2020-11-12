@@ -8,6 +8,13 @@ window.dash_clientside = Object.assign({}, window.dash_clientside, {
 
             d = document.getElementById(name + '-params-div');
             d.style.display = 'initial';
+        },
+
+        compareGroups: function(url) {
+            console.log(url);
+            if(url !== '') {
+                window.open(url, name='_blank');
+            }
         }
     }
 });
