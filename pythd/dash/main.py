@@ -10,6 +10,7 @@ from .config import *
 
 from .pages import mapper as page_mapper
 from .pages import thd as page_thd
+from .pages.compare import make_group_comparison_page
 
 app.layout = html.Div([
     dcc.Location(id='url', refresh=False),
@@ -41,8 +42,7 @@ def display_page(pathname, search, hashv):
         qs = {k: v[0] for k,v in parse_qs(search).items()}
         qs['g1'] = [int(i) for i in qs.get('g1', '').split(',')]
         qs['g2'] = [int(i) for i in  qs.get('g2', '').split(',')]
-        print(qs)
-        return []
+        return make_group_comparison_page(qs['file'], qs['g1'], qs['g2'], qs['name1'], qs['name2']) 
     else:
         return 'page not found: {}'.format(pathname)
 

@@ -342,7 +342,7 @@ def on_run_thd_click(n_clicks, fname, columns, filter_name,
     group = thd.run()
     g = group.as_igraph_graph(True)
     avail_cols = frozenset(g.vs[0].attributes().keys()) & frozenset(df.columns)
-    layout = g.layout_reingold_tilford()
+    layout = g.layout_reingold_tilford(root=[0])
     layout.scale(150)
 
     nrows = [v['num_rows'] for v in g.vs]
@@ -462,16 +462,39 @@ def on_group_compare_click(n_clicks, fname, group1, group2, groups):
     groups = deserialize_thd(groups).get('groups', {})
     if not ('0.0.0' in groups):
         return dash.no_update
+    
+    g1rel = group1 in ['all', 'rest']
+    g2rel = group2 in ['all', 'rest']
+    if g1rel and g2rel:
+        return dash.no_update
+
+    all_rids = frozenset(groups['0.0.0']['rids'])
+    d = {'all': 'All of source data', 'rest': 'Rest of source data'}
+    g1name = d.get(group1, group1)
+    g2name = d.get(group2, group2)
 
     if group1 == 'all':
-        group1 = groups['0.0.0']['rids']
+        group1 = all_rids
     if group2 == 'all':
-        group2 = groups['0.0.0']['rids']
+        group2 = all_rids
+
+    # Handle "rest of data" selections
+    if group1 == 'rest':
+        group2 = frozenset(groups.get(group2, {}).get('rids', []))
+        group1 = all_rids - group2
+    elif group2 == 'rest':
+        group1 = frozenset(groups.get(group1, {}).get('rids', []))
+        group2 = all_rids - group1
+    else:
+        group1 = frozenset(groups.get(group1, {}).get('rids', []))
+        group2 = frozenset(groups.get(group2, {}).get('rids', []))
 
     query={
         'file': fname,
-        'g1': ','.join(map(str, groups.get(group1, {}).get('rids', []))),
-        'g2': ','.join(map(str, groups.get(group2, {}).get('rids', [])))
+        'g1': ','.join(map(str, list(group1))),
+        'g2': ','.join(map(str, list(group2))),
+        'name1': g1name,
+        'name2': g2name
     }
     url = '/compare?' + urlencode(query)
     return url
