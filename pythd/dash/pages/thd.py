@@ -257,7 +257,9 @@ def on_thd_node_select(tapNodeData, groups, fname):
     summ_div = []
 
     group_name = tapNodeData['id']
-    groups = deserialize_thd(groups).get('groups', {})
+    thd = deserialize_thd(groups)
+    print(thd)
+    groups = thd.get('groups', {})
     if group_name in groups:
         group = groups[group_name]
 
@@ -277,7 +279,8 @@ def on_thd_node_select(tapNodeData, groups, fname):
         summ_columns, summ_data = make_datatable_info(summarize_dataframe(df))
 
         summ_div = [
-                html.Div('Group name: ' + group_name)
+                html.Div('Group name: ' + group_name),
+                html.Div('Num. points: {}'.format(df.shape[0]))
         ]
 
     return elements, json.dumps(columns), summ_columns, summ_data, summ_div

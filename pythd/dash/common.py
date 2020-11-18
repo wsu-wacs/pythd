@@ -158,6 +158,9 @@ def summarize_dataframe(df):
     """
     Make a summary dataframe from a given dataframe
 
+    Includes the following information:
+        * Mean, median, minimum, and maximum values of the column
+
     Parameters
     ----------
     df : pandas.DataFrame
@@ -167,10 +170,16 @@ def summarize_dataframe(df):
     -------
     pandas.DataFrame
     """
+    q1 = df.quantile(0.25, axis=0)
+    q3 = df.quantile(0.75, axis=0)
+    
     return pd.DataFrame({
             'column': df.columns,
             'mean': df.mean(axis=0),
+            'quantile25': q1,
             'median': df.median(axis=0),
+            'quantile75': q3,
+            'iqr': q3 - q1,
             'min': df.min(axis=0),
             'max': df.max(axis=0)
         },
@@ -194,6 +203,11 @@ def handle_upload_options(options):
     return {o: o in options for o in all_options}
 
 def make_datatable_info(df):
+    """
+    Convert a pandas dataframe to the format expected by dash DataTable
+
+    Creates the columns and data objects and determines the types of the columns
+    """
     columns = []
     for i, c in enumerate(df.columns):
         dtype = df.dtypes[i]
