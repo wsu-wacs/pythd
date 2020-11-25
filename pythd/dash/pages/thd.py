@@ -10,6 +10,7 @@ import dash_html_components as html
 import dash_cytoscape as cyto
 from dash_table import DataTable
 from dash.dependencies import Input, Output, State, ClientsideFunction
+import plotly.express as px
 
 from ..app import app
 from ..common import *
@@ -96,7 +97,7 @@ layout = html.Div(style=dict(height='100%'), children=[
                 html.Div(style=dict(gridColumn='2 / 3'), children=[
                 ])
             ])
-        ])
+        ]),
 
     ]),
     html.Hr(),
@@ -116,9 +117,28 @@ layout = html.Div(style=dict(height='100%'), children=[
             ]),
             html.Div(style=dict(gridColumn='2 / 4', textAlign='center'), children=[
                 html.Button('Compare', id='group-compare-button', n_clicks=0)
-            ])
+            ]),
+            html.Div(style=dict(gridColumn='1 / 5'), children=[
+                html.Hr(),
+                html.H2('Scatter Plots')
+            ]),
+            html.Br(),
+
+            html.Div(style=dict(gridColumn='1 / 3'), children=[
+                html.Span('Horizontal axis:'),
+                make_dropdown(cid='thd-group-viz-column1')
+            ]),
+            html.Div(style=dict(gridColumn='3 / 5'), children=[
+                html.Span('Vertical axis:'),
+                make_dropdown(cid='thd-group-viz-column2')
+            ]),
+            html.Br(),
+
+            dcc.Graph(id='thd-group-viz1', style=dict(gridColumn='1 / 3')),
+            dcc.Graph(id='thd-group-viz2', style=dict(gridColumn='3 / 5'))
         ])
     ]),
+
     html.Br(), html.Br(), html.Hr(),
     # Hidden divs for storage
     html.Div(id='thd-store', style=dict(display='none'), children=json.dumps({})),
@@ -212,7 +232,11 @@ def on_thd_upload_change(filename):
                Output('thd-mapper-data-info-span', 'children'),
                Output('thd-file-store', 'children'),
                Output('thd-columns-dropdown', 'options'),
-               Output('thd-columns-dropdown', 'value')],
+               Output('thd-columns-dropdown', 'value'),
+               Output('thd-group-viz-column1', 'options'),
+               Output('thd-group-viz-column1', 'value'),
+               Output('thd-group-viz-column2', 'options'),
+               Output('thd-group-viz-column2', 'value')],
               [Input('thd-upload-button', 'n_clicks')],
               [State('thd-upload', 'contents'),
                State('thd-upload', 'filename'),
@@ -223,7 +247,7 @@ def on_thd_upload_click(n_clicks, contents, filename, options):
     """
     ctx = dash.callback_context
     if (not ctx.triggered) or (contents == '') or (n_clicks == 0):
-        return (dash.no_update,)*6
+        return (dash.no_update,)*10
 
     options = handle_upload_options(options)
     df = contents_to_dataframe(contents, **options)
@@ -232,7 +256,9 @@ def on_thd_upload_click(n_clicks, contents, filename, options):
     columns = [{'label': col, 'value': col} for col in df.columns]
     fpath = make_dataframe_token(df)
 
-    return columns, columns[0]['value'], info, str(fpath), columns, [c['value'] for c in columns]
+    return (columns, columns[0]['value'], info, str(fpath), 
+            columns, [c['value'] for c in columns],
+            columns, columns[0]['value'], columns, columns[-1]['value'])
 
 @app.callback([Output('thd-mapper-graph', 'elements'),
                Output('thd-columns-store', 'children'),
@@ -471,26 +497,7 @@ def on_group_compare_click(n_clicks, fname, group1, group2, groups):
     if g1rel and g2rel:
         return dash.no_update
 
-    all_rids = frozenset(groups['0.0.0']['rids'])
-    d = {'all': 'All of source data', 'rest': 'Rest of source data'}
-    g1name = d.get(group1, group1)
-    g2name = d.get(group2, group2)
-
-    if group1 == 'all':
-        group1 = all_rids
-    if group2 == 'all':
-        group2 = all_rids
-
-    # Handle "rest of data" selections
-    if group1 == 'rest':
-        group2 = frozenset(groups.get(group2, {}).get('rids', []))
-        group1 = all_rids - group2
-    elif group2 == 'rest':
-        group1 = frozenset(groups.get(group1, {}).get('rids', []))
-        group2 = all_rids - group1
-    else:
-        group1 = frozenset(groups.get(group1, {}).get('rids', []))
-        group2 = frozenset(groups.get(group2, {}).get('rids', []))
+    group1, group2, g1name, g2name = get_comparison_groups(group1, group2, groups)
 
     query={
         'file': fname,
@@ -501,3 +508,39 @@ def on_group_compare_click(n_clicks, fname, group1, group2, groups):
     }
     url = '/compare?' + urlencode(query)
     return url
+
+@app.callback([Output('thd-group-viz1', 'figure'),
+               Output('thd-group-viz2', 'figure')],
+              [Input('thd-group-viz-column1', 'value'),
+               Input('thd-group-viz-column2', 'value')],
+              [State('group1-dropdown', 'value'),
+               State('group2-dropdown', 'value'),
+               State('thd-store', 'children'),
+               State('thd-file-store', 'children')])
+def on_scatter_column_select(column1, column2, group1, group2, groups, fname):
+    ctx = dash.callback_context
+    if (not ctx.triggered) or (column1 == '') or (column2 == ''):
+        return (dash.no_update,)*2
+
+    groups = deserialize_thd(groups).get('groups', {})
+    if not ('0.0.0' in groups):
+        return (dash.no_update,)*2
+
+    g1rel = group1 in ['all', 'rest']
+    g2rel = group2 in ['all', 'rest']
+    if g1rel and g2rel:
+        return (dash.no_update,)*2
+
+    group1, group2, g1name, g2name = get_comparison_groups(group1, group2, groups)
+    group1 = list(group1)
+    group2 = list(group2)
+
+    df = load_cached_dataframe(fname)
+    df1 = df.iloc[group1, :]
+    df2 = df.iloc[group2, :]
+    df = None
+
+    fig1 = px.scatter(df1, x=column1, y=column2)
+    fig2 = px.scatter(df2, x=column1, y=column2)
+    return fig1, fig2
+

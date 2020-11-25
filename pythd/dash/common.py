@@ -13,7 +13,7 @@ from .config import *
 
 __all__ = ['get_filter', 'networkx_network_to_cytoscape_elements', 'contents_to_dataframe',
            'make_dataframe_token', 'load_cached_dataframe', 'summarize_dataframe',
-           'handle_upload_options', 'make_datatable_info']
+           'handle_upload_options', 'make_datatable_info', 'get_comparison_groups']
 
 def get_filter(name, metric, n_components=2, component_list=[0], eccentricity_method='mean'):
     """
@@ -232,4 +232,43 @@ def make_datatable_info(df):
 
     data = df.to_dict('records')
     return columns, data
+
+def get_comparison_groups(group1, group2, groups):
+    """
+    Get the RIDs and group names for groups to compare
+
+    Parameters
+    ----------
+    group1 : str
+        The name of the first group
+    group2 : str
+        The name of the second group
+    groups : dict
+        The groups dict from the THD
+
+    Returns
+    -------
+    """
+    all_rids = frozenset(groups['0.0.0']['rids'])
+    d = {'all': 'All of source data', 'rest': 'Rest of source data'}
+    g1name = d.get(group1, group1)
+    g2name = d.get(group2, group2)
+
+    if group1 == 'all':
+        group1 = all_rids
+    if group2 == 'all':
+        group2 = all_rids
+
+    # Handle "rest of data" selections
+    if group1 == 'rest':
+        group2 = frozenset(groups.get(group2, {}).get('rids', []))
+        group1 = all_rids - group2
+    elif group2 == 'rest':
+        group1 = frozenset(groups.get(group1, {}).get('rids', []))
+        group2 = all_rids - group1
+    else:
+        group1 = frozenset(groups.get(group1, {}).get('rids', []))
+        group2 = frozenset(groups.get(group2, {}).get('rids', []))
+
+    return group1, group2, g1name, g2name
 
