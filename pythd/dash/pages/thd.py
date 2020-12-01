@@ -246,7 +246,7 @@ def on_thd_upload_click(n_clicks, contents, filename, options):
     Called when a data file is uploaded
     """
     ctx = dash.callback_context
-    if (not ctx.triggered) or (contents == '') or (n_clicks == 0):
+    if (not ctx.triggered) or (contents == '') or (contents is None) or (n_clicks == 0):
         return (dash.no_update,)*10
 
     options = handle_upload_options(options)

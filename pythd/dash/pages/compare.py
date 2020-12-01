@@ -1,10 +1,16 @@
 """
 Dynamic page for comparing two groups
 """
+import json
+
 import dash
 import dash_core_components as dcc
 import dash_html_components as html
 from dash_table import DataTable
+from dash.dependencies import Input, Output, State, ClientsideFunction
+
+import plotly.express as px
+import plotly.graph_objects as go
 
 import numpy as np
 import scipy as sp
@@ -48,6 +54,9 @@ def make_group_comparison_page(fname, g1, g2, name1, name2):
 
     res = [
         html.H1('Group Comparison'),
+        html.Span('Select feature:'),
+        make_dropdown('compare-dropdown', options=[{'label': c, 'value': c} for c in df1.columns]),
+        dcc.Graph(id='group-compare-boxplot'),
 
         html.H2('Group Summaries'),
         html.Div(style=dict(display='grid', gridTemplateColumns='50% 50%'), children=[
@@ -64,8 +73,41 @@ def make_group_comparison_page(fname, g1, g2, name1, name2):
         ]),
 
         html.H2('KS Test Results'),
-        DataTable(page_size=10, columns=summ_cols, data=summ_data, **DATATABLE_STYLE)
+        DataTable(page_size=10, columns=summ_cols, data=summ_data, **DATATABLE_STYLE),
+
+        html.Div(id='compare-g1-store', style=dict(display='none'), children=json.dumps(g1)),
+        html.Div(id='compare-name1-store', style=dict(display='none'), children=name1),
+        html.Div(id='compare-g2-store', style=dict(display='none'), children=json.dumps(g2)),
+        html.Div(id='compare-name2-store', style=dict(display='none'), children=name2),
+        html.Div(id='compare-fname-store', style=dict(display='none'), children=fname)
     ]
 
     return res
+
+@app.callback(Output('group-compare-boxplot', 'figure'),
+              [Input('compare-dropdown', 'value')],
+              [State('compare-fname-store', 'children'),
+               State('compare-g1-store', 'children'),
+               State('compare-g2-store', 'children'),
+               State('compare-name1-store', 'children'),
+               State('compare-name2-store', 'children')])
+def on_feature_select(value, fname, g1, g2, name1, name2):
+    ctx = dash.callback_context
+    if not ctx.triggered:
+        return dash.no_update
+
+    g1 = json.loads(g1)
+    g2 = json.loads(g2)
+
+    df = load_cached_dataframe(fname)
+    d1 = df.iloc[g1, :]
+    d1 = d1[value]
+    d2 = df.iloc[g2, :]
+    d2 = d2[value]
+
+    fig = go.Figure()
+    fig.add_trace(go.Box(name=name1, y=d1))
+    fig.add_trace(go.Box(name=name2, y=d2))
+
+    return fig.to_dict()
 
