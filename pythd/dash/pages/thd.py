@@ -284,7 +284,6 @@ def on_thd_node_select(tapNodeData, groups, fname):
 
     group_name = tapNodeData['id']
     thd = deserialize_thd(groups)
-    print(thd)
     groups = thd.get('groups', {})
     if group_name in groups:
         group = groups[group_name]
@@ -540,7 +539,12 @@ def on_scatter_column_select(column1, column2, group1, group2, groups, fname):
     df2 = df.iloc[group2, :]
     df = None
 
-    fig1 = px.scatter(df1, x=column1, y=column2)
-    fig2 = px.scatter(df2, x=column1, y=column2)
+    xmin = min(df1[column1].min(), df2[column1].min())
+    xmax = max(df1[column1].max(), df2[column1].max())
+    ymin = min(df1[column2].min(), df2[column2].min())
+    ymax = max(df1[column2].max(), df2[column2].max())
+
+    fig1 = px.scatter(df1, x=column1, y=column2, range_x=(xmin, xmax), range_y=(ymin, ymax))
+    fig2 = px.scatter(df2, x=column1, y=column2, range_x=(xmin, xmax), range_y=(ymin, ymax))
     return fig1, fig2
 
