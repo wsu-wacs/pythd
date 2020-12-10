@@ -10,7 +10,8 @@ from dash_table import DataTable
 
 __all__ = ['make_filter_params', 'make_upload_div', 'make_filter_div', 'make_columns_div',
            'make_cover_div', 'make_clustering_div', 'make_network_settings_div',
-           'make_network_view_div', 'colorings', 'make_node_info_div', 'DATATABLE_STYLE', 'make_dropdown']
+           'make_network_view_div', 'colorings', 'make_node_info_div', 'DATATABLE_STYLE', 'make_dropdown',
+           'make_misc_settings_div']
 
 colorings = {
     'density': {
@@ -140,6 +141,19 @@ def make_columns_div(name='mapper-columns', style={}):
         dcc.Dropdown(id=name+'-dropdown',
                      multi=True,
                      placeholder='Select columns')
+    ])
+
+def make_misc_settings_div(name='misc', style={}):
+    return html.Div(style=style, children=[
+        html.H4('Data Normalization'),
+        make_dropdown(cid=name+'-normalize',
+            options=[
+                {'label': 'No normalization', 'value': 'none'},
+                {'label': 'Min-max normalization', 'value': 'minmax'},
+                {'label': 'Max-abs normalization', 'value': 'maxabs'},
+                {'label': 'Standard scaling', 'value': 'standard'},
+                {'label': 'Robust scaling', 'value': 'robust'}],
+            value='none')
     ])
 
 def make_filter_div(name='filter', style={}):

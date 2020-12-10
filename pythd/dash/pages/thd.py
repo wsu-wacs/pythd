@@ -37,6 +37,7 @@ layout = html.Div(style=dict(height='100%'), children=[
             make_upload_div(name='thd-upload'),
             make_columns_div(name='thd-columns'),
             html.H3('MAPPER Settings'),
+            make_misc_settings_div(name='thd-misc'),
             make_filter_div(name='thd-filter'),
             make_clustering_div(name='thd-cluster'),
             make_network_settings_div(name='thd-mapper'),
@@ -322,6 +323,7 @@ def on_thd_node_select(tapNodeData, groups, fname):
               [State('thd-file-store', 'children'),
                State('thd-columns-dropdown', 'value'),
                State('thd-filter-dropdown', 'value'),
+               State('thd-misc-normalize', 'value'),
                # Cover parameters
                State('thd-cover-interval-input', 'value'),
                State('thd-cover-overlap-input', 'value'),
@@ -341,7 +343,7 @@ def on_thd_node_select(tapNodeData, groups, fname):
                # Eccentricity parameters
                State('eccentricity-method-dropdown', 'value')
 ])
-def on_run_thd_click(n_clicks, fname, columns, filter_name,
+def on_run_thd_click(n_clicks, fname, columns, filter_name, normalize_method,
                      num_intervals, overlap,
                      clust_method, metric,
                      contract_amount, group_threshold,
@@ -357,8 +359,10 @@ def on_run_thd_click(n_clicks, fname, columns, filter_name,
     elements = []
 
     df = load_cached_dataframe(fname)
-    sub_df = df.loc[:, columns]
+    sub_df = normalize_dataframe(df.loc[:, columns], normalize_method)
     n_components = tsne_components if filter_name == 'tsne' else pca_components
+
+
     filt = get_filter(filter_name, metric, int(n_components), component_list, eccentricity_method)
     f_x = filt(sub_df.values)
 

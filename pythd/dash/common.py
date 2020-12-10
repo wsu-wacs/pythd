@@ -13,7 +13,7 @@ from .config import *
 
 __all__ = ['get_filter', 'networkx_network_to_cytoscape_elements', 'contents_to_dataframe',
            'make_dataframe_token', 'load_cached_dataframe', 'summarize_dataframe',
-           'handle_upload_options', 'make_datatable_info', 'get_comparison_groups']
+           'handle_upload_options', 'make_datatable_info', 'get_comparison_groups', 'normalize_dataframe']
 
 def get_filter(name, metric, n_components=2, component_list=[0], eccentricity_method='mean'):
     """
@@ -271,4 +271,46 @@ def get_comparison_groups(group1, group2, groups):
         group2 = frozenset(groups.get(group2, {}).get('rids', []))
 
     return group1, group2, g1name, g2name
+
+def _norm_maxabs(ser):
+    mv = ser.abs().max()
+    if mv > 0.0:
+        return ser / mv
+    return ser
+
+def _norm_minmax(ser):
+    minv = ser.min()
+    maxv = ser.max()
+    d = maxv - minv
+    if d > 0.0:
+        return (ser - minv) / d
+    return ser
+
+def _norm_standard(ser):
+    mu = ser.mean()
+    std = ser.std()
+    if std > 0.0:
+        ser = (ser - mu) / std
+    return ser
+
+def _norm_robust(ser):
+    q2 = ser.median()
+    iqr = ser.quantile(0.75) - ser.quantile(0.25)
+    if iqr > 0.0:
+        ser = (ser - q2) / iqr
+    return ser
+
+def normalize_dataframe(df, method):
+    column_normalizers = {
+        'maxabs': _norm_maxabs,
+        'minmax': _norm_minmax,
+        'standard': _norm_standard,
+        'robust': _norm_robust
+    }
+
+    cn = column_normalizers.get(method, lambda ser: ser)
+    for column in df.columns:
+        df[column] = cn(df[column])
+
+    return df
 
