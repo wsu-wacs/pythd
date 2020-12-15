@@ -126,6 +126,8 @@ def make_upload_div(name='mapper-upload', style={}):
             options=[{'label': 'No index column', 'value': 'no_index'},
                      {'label': 'No header', 'value': 'no_header'}],
             value=[]),
+        html.Span('Remove columns:'),
+        make_dropdown(cid=name+'-remove-dropdown', clearable=True, multi=True, searchable=True),
         html.Button(
             'Upload',
             id=name+'-button',

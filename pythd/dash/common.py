@@ -13,7 +13,8 @@ from .config import *
 
 __all__ = ['get_filter', 'networkx_network_to_cytoscape_elements', 'contents_to_dataframe',
            'make_dataframe_token', 'load_cached_dataframe', 'summarize_dataframe',
-           'handle_upload_options', 'make_datatable_info', 'get_comparison_groups', 'normalize_dataframe']
+           'handle_upload_options', 'make_datatable_info', 'get_comparison_groups', 'normalize_dataframe',
+           'get_header']
 
 def get_filter(name, metric, n_components=2, component_list=[0], eccentricity_method='mean'):
     """
@@ -71,7 +72,14 @@ def networkx_network_to_cytoscape_elements(network, df):
 
     return elements
 
-def contents_to_dataframe(contents, no_index=False, no_header=False):
+def decode_contents(contents):
+    contents = contents.split(',')
+    content_type = contents[0].split(';')
+    contents = contents[1]
+    contents = base64.b64decode(contents, validate=True)
+    return (contents, content_type[0])
+
+def contents_to_dataframe(contents, remove_cols=None, no_index=False, no_header=False):
     """
     Convert the value of a Dash upload component (CSV or zipped CSV) into a Pandas dataframe
 
@@ -89,17 +97,17 @@ def contents_to_dataframe(contents, no_index=False, no_header=False):
     pandas.DataFrame
         The converted dataframe
     """
-    contents = contents.split(',')
-    content_type = contents[0].split(';')
-    contents = contents[1]
-    contents = base64.b64decode(contents, validate=True)
+    contents, content_type = decode_contents(contents)
 
-    compression = 'zip' if ('zip' in content_type[0]) else 'infer'
+    compression = 'zip' if ('zip' in content_type) else 'infer'
     index_col = None if no_index else 0
     header = None if no_header else 0
 
     with io.BytesIO(contents) as f:
         df = pd.read_csv(f, header=header, index_col=index_col, compression=compression)
+
+    if remove_cols is not None:
+        df.drop(columns=remove_cols, inplace=True)
 
     # Process non-numerical columns
     # for now, just one-hot encode (TODO: add option to select beteween this and converting to ints)
@@ -314,3 +322,12 @@ def normalize_dataframe(df, method):
 
     return df
 
+def get_header(contents):
+    contents, content_type = decode_contents(contents)
+    if content_type == 'zip':
+        pass # TODO: handle
+    else:
+        contents = contents.decode(encoding='utf-8')
+        with io.StringIO(contents) as f:
+            line = next(f)
+    return list(map(lambda s: s.replace('"', ''), line.split(',')))

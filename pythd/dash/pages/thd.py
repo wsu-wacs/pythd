@@ -1,6 +1,6 @@
 from pathlib import Path
 from urllib.parse import urlencode
-import json
+import json, time
 
 import pandas as pd
 
@@ -218,15 +218,19 @@ def on_thd_mapper_coloring_change(coloring, column, stylesheet, columns):
             info = '{} ({:.2f}, {:.2f}); '.format(column, minv, maxv)
     return stylesheet, hide_show, info
 
-@app.callback(Output('thd-upload-div', 'children'),
-              [Input('thd-upload', 'filename')])
-def on_thd_upload_change(filename):
+@app.callback([Output('thd-upload-div', 'children'),
+               Output('thd-upload-remove-dropdown', 'options'),
+               Output('thd-upload-remove-dropdown', 'value')],
+              [Input('thd-upload', 'filename')],
+              [State('thd-upload', 'contents')])
+def on_thd_upload_change(filename, contents):
     ctx = dash.callback_context
     if (not ctx.triggered) or (filename == ''):
-        return ''
+        return (dash.no_update,)*2
 
+    columns = [{'label': c, 'value': c} for c in get_header(contents)]
     display = 'Selected file: ' + str(filename)
-    return display
+    return display, columns, []
 
 @app.callback([Output('thd-mapper-coloring-column-dropdown', 'options'),
                Output('thd-mapper-coloring-column-dropdown', 'value'),
@@ -241,8 +245,9 @@ def on_thd_upload_change(filename):
               [Input('thd-upload-button', 'n_clicks')],
               [State('thd-upload', 'contents'),
                State('thd-upload', 'filename'),
-               State('thd-upload-check', 'value')])
-def on_thd_upload_click(n_clicks, contents, filename, options):
+               State('thd-upload-check', 'value'),
+               State('thd-upload-remove-dropdown', 'value')])
+def on_thd_upload_click(n_clicks, contents, filename, options, remove):
     """
     Called when a data file is uploaded
     """
@@ -251,7 +256,7 @@ def on_thd_upload_click(n_clicks, contents, filename, options):
         return (dash.no_update,)*10
 
     options = handle_upload_options(options)
-    df = contents_to_dataframe(contents, **options)
+    df = contents_to_dataframe(contents, remove, **options)
 
     info = '{}; {} rows, {} columns'.format(Path(filename).name, df.shape[0], df.shape[1])
     columns = [{'label': col, 'value': col} for col in df.columns]
@@ -364,14 +369,24 @@ def on_run_thd_click(n_clicks, fname, columns, filter_name, normalize_method,
 
 
     filt = get_filter(filter_name, metric, int(n_components), component_list, eccentricity_method)
+
+    print("Running filter... ", end='')
+    start_time = time.perf_counter()
     f_x = filt(sub_df.values)
+    t = time.perf_counter() - start_time
+    print("Done. ({:.4f} s)".format(t))
 
     cover = IntervalCover.EvenlySpacedFromValues(f_x, int(num_intervals), float(overlap) / 100)
     clust = HierarchicalClustering(method=clust_method, metric=metric)
     thd = THD(sub_df, filt, cover, clust, float(contract_amount), int(group_threshold),
               full_df=df)
 
+    print("Running THD... ", end='')
+    start_time = time.perf_counter()
     group = thd.run()
+    t = time.perf_counter() - start_time
+    print("Done. ({:.4f} s)".format(t))
+
     g = group.as_igraph_graph(True)
     avail_cols = frozenset(g.vs[0].attributes().keys()) & frozenset(df.columns)
     layout = g.layout_reingold_tilford(root=[0])
