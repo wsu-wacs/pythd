@@ -109,6 +109,9 @@ def contents_to_dataframe(contents, remove_cols=None, no_index=False, no_header=
     if remove_cols is not None:
         df.drop(columns=remove_cols, inplace=True)
 
+    # Remove NA rows
+    df.dropna(inplace=True)
+
     # Process non-numerical columns
     # for now, just one-hot encode (TODO: add option to select beteween this and converting to ints)
     new_cols = []
