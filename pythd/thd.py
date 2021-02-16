@@ -1,5 +1,9 @@
 import copy
+from itertools import combinations
 import json
+import numpy as np
+import scipy as sp
+from scipy.spatial.distance import cdist
 import pandas as pd
 
 from pythd.mapper import MAPPER
@@ -240,6 +244,12 @@ class THDGroup:
         self.density = len(self.rids) / self.dataset.shape[0]
         self.value = self.density
         self.network_size = len(self.network.get_k_simplices())
+        # Cluster distance
+        self.computed_distance = False
+        self.distance_method = None
+        self.cluster_method = None
+        self.metric = None
+        self.dist = 0.0
 
     def __iter__(self):
         """Iterator for this group and all its descendents"""
@@ -256,6 +266,54 @@ class THDGroup:
     
     def __str__(self):
         return "Group {} ({} rows, {} children)".format(self.get_name(), self.num_rows, len(self.children))
+    
+    def compute_distance(self, 
+                         combine_method="average", 
+                         cluster_method="average", 
+                         metric="euclidean",
+                         **kwargs):
+        """
+        Compute distance between children clusters.
+        """
+        if (self.computed_distance and 
+            (self.distance_method == combine_method) and 
+            (self.cluster_method == cluster_method) and
+            (self.metric == metric)):
+            return self.dist
+            
+        self.computed_distance = True
+        self.distance_method = combine_method
+        self.cluster_method = cluster_method
+        self.metric = metric
+        
+        if len(self.children) <= 1:
+            self.dist = 0.0
+            return self.dist
+
+        dists = []
+        for g1, g2 in combinations(self.children, 2):
+            X1 = g1.get_data(False)
+            X2 = g2.get_data(False)
+            Y = cdist(X1, X2, metric=metric, **kwargs) # pairwise distances between groups 
+
+            if cluster_method == 'average':
+                dist = Y.mean()
+            elif cluster_method in ['single', 'min']:
+                dist = Y.min()
+            elif cluster_method in ['complete', 'max']:
+                dist = Y.max()
+            # distance between just these two clusters
+            dists.append(dist)
+        
+        # combine individual cluster distances into one
+        if combine_method == 'average':
+            self.dist = sum(dists) / len(dists)
+        elif combine_method in ['single', 'min']:
+            self.dist = min(dists)
+        elif combine_method in ['complete', 'max']:
+            self.dist = max(dists)
+        
+        return self.dist
 
     def _normalize_values(self):
         minval = 1.0
