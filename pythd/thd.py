@@ -267,8 +267,39 @@ class THDGroup:
     def __str__(self):
         return "Group {} ({} rows, {} children)".format(self.get_name(), self.num_rows, len(self.children))
     
+    def cut_on_distance(self, distance,
+                        combine_method="max", 
+                        cluster_method="average", 
+                        metric="euclidean",
+                        **kwargs):
+        current = [self]
+        changed = self.compute_distance(combine_method, cluster_method, metric, **kwargs) >= distance
+        while changed:
+            new = []
+            changed = False
+            
+            for n in current:
+                d = n.compute_distance(combine_method, cluster_method, metric, **kwargs)
+                if (d >= distance) and (len(n.children) > 0):
+                    new += n.children
+                    changed = True
+                else:
+                    new.append(n)
+            
+            current = new
+        
+        # Build flat clustering
+        # 0 = special class for points that were shed off (either singletons or below group threshold)
+        flat = np.zeros(self.dataset.shape[0], dtype=np.uint32)
+        for i, n in enumerate(current):
+            for r in n.rids:
+                flat[r] = i + 1
+                
+        return current, flat
+                    
+        
     def compute_distance(self, 
-                         combine_method="average", 
+                         combine_method="max", 
                          cluster_method="average", 
                          metric="euclidean",
                          **kwargs):
