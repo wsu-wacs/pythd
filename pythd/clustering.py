@@ -5,6 +5,7 @@ Original code by Xiu Huan Yap <yap.4@wright.edu>
 Rewritten and modified by Kyle Brown <brown.718@wright.edu>
 """
 from abc import ABC, abstractmethod
+from collections import defaultdict
 import math
 
 import numpy as np
@@ -71,6 +72,62 @@ class BaseClustering(ABC):
             original points array.
         """
         pass
+
+class ScikitLearnClustering(BaseClustering):
+    """Used for clustering algorithms that follow scikit-learn's interface
+    
+    Parameters
+    ----------
+    cls
+        The clustering algorithm class. Instances of it should have
+        a fit_predict method.
+    *args
+        Positional arguments that will be passed to the constructor of cls
+    **kwargs
+        Keyword arguments that will be passed to the constructor of cls
+    """
+    def __init__(self, cls, *args, **kwargs):
+        self.cls = cls
+        self.args = args
+        self.kwargs = kwargs
+        
+        self.reset()
+    
+    def reset(self):
+        self.clust = self.cls(*self.args, **self.kwargs)
+    
+    def cluster(self, points):
+        """Run the clustering and return the obtained clusters.
+        
+        Parameters
+        ----------
+        points : numpy.ndarray
+            The points to cluster. Its shape should be (n, k), where
+            n is the number of points and k the dimensionality of the data.
+        
+        Returns
+        -------
+        list
+            A list of clusters. Each cluster is a list of integers indexing the
+            original points array.
+        """
+        if isinstance(points, list):
+            points = np.array(points)
+        if not isinstance(points, np.ndarray):
+            raise TypeError(f"Points given to clustering method must be a numpy array, not {type(points)}")
+    
+        labels = self.clust.fit_predict(points)
+        # Convert labels to cluster arrays
+        clusters = defaultdict(list)
+        noise_index = max(labels) + 1
+        for i, lab in enumerate(labels):
+            if lab < 0: # noise in algorithms like DBSCAN
+                clusters[noise_index].append(i)
+                noise_index += 1
+            else:
+                clusters[lab].append(i)
+        
+        return list(clusters.values())
 
 class HierarchicalClustering(BaseClustering):
     """Hierarchical clustering using scipy

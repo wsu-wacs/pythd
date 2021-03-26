@@ -172,7 +172,7 @@ class MAPPER:
     def set_clustering(self, clustering):
         """Set the clustering method"""
         if not isinstance(clustering, BaseClustering):
-            raise TypeError("Incorrect clustering type: {type(clustering)}")
+            raise TypeError(f"Incorrect clustering type: {type(clustering)}")
         self.clustering = clustering
         return self
     
