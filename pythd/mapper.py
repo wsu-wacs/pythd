@@ -150,10 +150,11 @@ class MAPPER:
     clustering : BaseClustering
         A class which can cluster subsets of the data and return flat clusters
     """
-    def __init__(self, filter=None, cover=None, clustering=None):
+    def __init__(self, filter=None, cover=None, clustering=None, precomputed={}):
         self.set_filter(filter)
         self.set_cover(cover)
         self.set_clustering(clustering)
+        self.precomputed = precomputed
     
     def set_filter(self, filter):
         """Set the filter function"""
@@ -211,7 +212,10 @@ class MAPPER:
             raise TypeError(f"RIDs should be given as a list, not {type(rids)}")
 
         if f_x is None:
-            f_x = self.filter(points)
+            if 'filter' in self.precomputed:
+                f_x = self.precomputed['filter'][rids]
+            else:
+                f_x = self.filter(points)
         elif isinstance(f_x, list):
             f_x = np.array(f_x)
         if not isinstance(f_x, np.ndarray):
@@ -224,10 +228,16 @@ class MAPPER:
         
         for open_set_id, members in d.items():
             memb_np = np.array(members)
+            set_rids = np.array([rids[i] for i in members])
+
             if len(members) == 1:
                 clusters = [[0]] # Just the one point 
             else:
-                clusters = self.clustering.cluster(points[members])
+                if 'distance' in self.precomputed:
+                    sub_dist = self.precomputed['distance'][set_rids, :][:, set_rids]
+                    clusters = self.clustering.cluster(sub_dist)
+                else:
+                    clusters = self.clustering.cluster(points[members])
             
             for clust_id, cluster in enumerate(clusters):
                 pointset = frozenset(memb_np[cluster]) # indexes within points array

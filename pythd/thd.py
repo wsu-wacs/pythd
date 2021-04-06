@@ -9,6 +9,8 @@ import pandas as pd
 from pythd.mapper import MAPPER
 from pythd.clustering import HierarchicalClustering
 
+from sklearn.metrics import pairwise_distances
+
 class THD:
     """
     Class for running a THD
@@ -34,12 +36,17 @@ class THD:
                  clustering=HierarchicalClustering(),
                  contract_amount=0.1,
                  group_threshold=100,
-                 full_df=None):
+                 full_df=None,
+                 precompute=False,
+                 metric='euclidean'):
         self.dataset = pd.DataFrame(dataset)
         if full_df is not None:
             self.full_df = pd.DataFrame(full_df)
         else:
             self.full_df = self.dataset
+        self.precompute = precompute
+        self.metric = metric
+
         self.filter = filt
         self.base_cover = copy.deepcopy(cover)
         self.clustering = clustering
@@ -50,12 +57,19 @@ class THD:
     def reset(self):
         """Reset the THD to be able to run it from the start."""
         self.cover = copy.deepcopy(self.base_cover)
+        
+        pc_cache = {}
+        if self.precompute:
+            pc_cache['filter'] = self.filter(self.dataset)
+            pc_cache['distance'] = pairwise_distances(self.dataset.values, metric=self.metric)
+            
         self.root = THDJob(self.dataset, self.filter, self.cover,
                      rids=list(range(self.dataset.shape[0])),
                      clustering=self.clustering,
                      contract_amount=self.contract_amount,
                      group_threshold=self.group_threshold,
-                     full_df=self.full_df)
+                     full_df=self.full_df,
+                     precomputed=pc_cache)
         self.jobs = [self.root]
         self.is_run = False
 
@@ -148,7 +162,8 @@ class THDJob:
                  group_threshold=100,
                  contract_amount=0.1,
                  parent=None,
-                 full_df=None):
+                 full_df=None,
+                 precomputed={}):
         self.dataset = dataset
         if full_df is not None:
             self.full_df = full_df
@@ -162,10 +177,11 @@ class THDJob:
         self.group_threshold = group_threshold
         self.contract_amount = contract_amount
         self.parent = parent
+        self.precomputed = precomputed
         self.reset()
     
     def reset(self):
-        self.mapper = MAPPER(filter=self.filt, cover=self.cover, clustering=self.clustering)
+        self.mapper = MAPPER(filter=self.filt, cover=self.cover, clustering=self.clustering, precomputed=self.precomputed)
         self.child_jobs = []
         self.components = []
         self.groups = []
@@ -173,8 +189,13 @@ class THDJob:
         self.is_run = False
     
     def run(self, verbose=False):
+        def vprint(*args, **kwargs):
+            if verbose:
+                print(*args, **kwargs)
+
         if self.is_run:
             self.reset()
+
         # MAPPER -> get topological network and connected components
         self.result = self.mapper.run(self.subset.values, rids=self.rids)
         self.network = self.result.compute_k_skeleton(k=1)
@@ -207,7 +228,8 @@ class THDJob:
                                  group_threshold=self.group_threshold,
                                  contract_amount=self.contract_amount,
                                  parent=self.group,
-                                 full_df=self.full_df)
+                                 full_df=self.full_df,
+                                 precomputed=self.precomputed)
                     self.child_jobs.append(job)
         self.is_run = True
 

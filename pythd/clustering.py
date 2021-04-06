@@ -10,7 +10,9 @@ import math
 
 import numpy as np
 import numba
+from scipy.spatial.distance import squareform
 from scipy.cluster.hierarchy import fcluster, linkage
+from sklearn.cluster import OPTICS
 
 @numba.jit(nopython=True, parallel=True, cache=True)
 def auto_num_bins(x):
@@ -49,6 +51,19 @@ def extract_clusters(cluster_memberships, num_points):
         pic = np.where(np.array([cluster_memberships[i] == c for i in range(num_points)]))[0]
         clusters.append(list(pic))
     return clusters
+
+def labels_to_clusters(labels):
+    # Convert labels to cluster arrays
+    clusters = defaultdict(list)
+    noise_index = max(labels) + 1
+    for i, lab in enumerate(labels):
+        if lab < 0: # noise in algorithms like DBSCAN
+            clusters[noise_index].append(i)
+            noise_index += 1
+        else:
+            clusters[lab].append(i)
+    
+    return list(clusters.values())
 
 class BaseClustering(ABC):
     """
@@ -115,19 +130,14 @@ class ScikitLearnClustering(BaseClustering):
             points = np.array(points)
         if not isinstance(points, np.ndarray):
             raise TypeError(f"Points given to clustering method must be a numpy array, not {type(points)}")
-    
-        labels = self.clust.fit_predict(points)
-        # Convert labels to cluster arrays
-        clusters = defaultdict(list)
-        noise_index = max(labels) + 1
-        for i, lab in enumerate(labels):
-            if lab < 0: # noise in algorithms like DBSCAN
-                clusters[noise_index].append(i)
-                noise_index += 1
-            else:
-                clusters[lab].append(i)
+
+        n = points.shape[0]
+        if n == 1:
+            return [[0]]
+        else:
+            labels = self.clust.fit_predict(points)
+            return labels_to_clusters(labels)
         
-        return list(clusters.values())
 
 class HierarchicalClustering(BaseClustering):
     """Hierarchical clustering using scipy
@@ -197,8 +207,12 @@ class HierarchicalClustering(BaseClustering):
         if not isinstance(points, np.ndarray):
             raise TypeError(f"Points given to clustering method must be a numpy array, not {type(points)}")
 
-        Z = linkage(points, method=self.method, metric=self.metric)
         num_points = points.shape[0]
+        
+        if self.metric == 'precomputed':
+            points = squareform(points)
+            
+        Z = linkage(points, method=self.method, metric=self.metric)
         
         # Method used in original MAPPER paper
         self.cut_method = cut_method
