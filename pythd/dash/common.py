@@ -21,7 +21,7 @@ def get_filter(name, metric, n_components=2, component_list=[0], eccentricity_me
     Get a filter object from parameters
     """
     if name == 'tsne':
-        return ScikitLearnFilter(TSNE, n_components=n_components, metric=metric)
+        return ScikitLearnFilter(TSNE, n_components=n_components, metric=metric, square_distances=True)
     elif name == 'pca':
         return ScikitLearnFilter(PCA, n_components=n_components)
     elif name == 'identity':

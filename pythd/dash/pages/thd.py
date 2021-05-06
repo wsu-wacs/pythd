@@ -53,6 +53,10 @@ layout = html.Div(style=dict(height='100%'), children=[
                 dcc.Input(id='thd-threshold-input', debounce=True, inputMode='numeric',
                           min=1, value=100),
                 html.Br(),
+                dcc.Checklist(options=[{'label': 'Precompute distances and filter values', 'value': 'precompute'}],
+                              value=[],
+                              id='thd-precompute-checklist'),
+                html.Br(),
                 html.Button('Run THD', id='thd-button', n_clicks=0),
 
                 html.H3('THD Tree Settings'),
@@ -338,6 +342,7 @@ def on_thd_node_select(tapNodeData, groups, fname):
                # THD Parameters
                State('thd-contract-input', 'value'),
                State('thd-threshold-input', 'value'),
+               State('thd-precompute-checklist', 'value'),
                # Filter-specific parameters
                # tSNE parameters
                State('tsne-components-input', 'value'),
@@ -351,7 +356,7 @@ def on_thd_node_select(tapNodeData, groups, fname):
 def on_run_thd_click(n_clicks, fname, columns, filter_name, normalize_method,
                      num_intervals, overlap,
                      clust_method, metric,
-                     contract_amount, group_threshold,
+                     contract_amount, group_threshold, precompute_value,
                      tsne_components, pca_components,
                      component_list, eccentricity_method):
     """
@@ -366,7 +371,7 @@ def on_run_thd_click(n_clicks, fname, columns, filter_name, normalize_method,
     df = load_cached_dataframe(fname)
     sub_df = normalize_dataframe(df.loc[:, columns], normalize_method)
     n_components = tsne_components if filter_name == 'tsne' else pca_components
-
+    precompute = 'precompute' in precompute_value
 
     filt = get_filter(filter_name, metric, int(n_components), component_list, eccentricity_method)
 
@@ -377,8 +382,12 @@ def on_run_thd_click(n_clicks, fname, columns, filter_name, normalize_method,
     print("Done. ({:.4f} s)".format(t))
 
     cover = IntervalCover.EvenlySpacedFromValues(f_x, int(num_intervals), float(overlap) / 100)
-    clust = HierarchicalClustering(method=clust_method, metric=metric)
-    thd = THD(sub_df, filt, cover, clust, float(contract_amount), int(group_threshold),
+    clust = HierarchicalClustering(method=clust_method, 
+                                   metric=('precomputed' if precompute else metric))
+    thd = THD(dataset=sub_df, filt=filt, cover=cover, clustering=clust, 
+              contract_amount=float(contract_amount), 
+              group_threshold=int(group_threshold),
+              precompute=precompute,
               full_df=df)
 
     print("Running THD... ", end='')

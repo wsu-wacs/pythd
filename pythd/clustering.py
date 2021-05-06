@@ -210,8 +210,8 @@ class HierarchicalClustering(BaseClustering):
         num_points = points.shape[0]
         
         if self.metric == 'precomputed':
-            points = squareform(points)
-            
+            points = squareform(points, checks=False)
+
         Z = linkage(points, method=self.method, metric=self.metric)
         
         # Method used in original MAPPER paper
