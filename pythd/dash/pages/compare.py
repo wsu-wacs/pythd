@@ -50,6 +50,7 @@ def make_group_comparison_page(fname, g1, g2, name1, name2):
         d['group2_mean'].append(d2.mean())
 
     summ_df = pd.DataFrame(d)
+    summ_df.sort_values(by=['ks_statistic'], ascending=False, inplace=True)
     summ_cols, summ_data = make_datatable_info(summ_df)
 
     res = [

@@ -346,6 +346,8 @@ def on_thd_node_select(tapNodeData, groups, fname):
                # Filter-specific parameters
                # tSNE parameters
                State('tsne-components-input', 'value'),
+               # UMAP parameters
+               State('umap-components-input', 'value'),
                # PCA parameters
                State('pca-components-input', 'value'),
                # Component filter parameters
@@ -357,7 +359,9 @@ def on_run_thd_click(n_clicks, fname, columns, filter_name, normalize_method,
                      num_intervals, overlap,
                      clust_method, metric,
                      contract_amount, group_threshold, precompute_value,
-                     tsne_components, pca_components,
+                     tsne_components, 
+                     umap_components,
+                     pca_components,
                      component_list, eccentricity_method):
     """
     Called when a new THD is run
@@ -370,7 +374,10 @@ def on_run_thd_click(n_clicks, fname, columns, filter_name, normalize_method,
 
     df = load_cached_dataframe(fname)
     sub_df = normalize_dataframe(df.loc[:, columns], normalize_method)
-    n_components = tsne_components if filter_name == 'tsne' else pca_components
+    if filter_name == 'umap':
+        n_components = umap_components
+    else:
+        n_components = tsne_components if filter_name == 'tsne' else pca_components
     precompute = 'precompute' in precompute_value
 
     filt = get_filter(filter_name, metric, int(n_components), component_list, eccentricity_method)

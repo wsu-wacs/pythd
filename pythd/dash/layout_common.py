@@ -77,6 +77,14 @@ def make_filter_params():
                       min=1,
                       value=2)
         ], style=dict(display='none')),
+        html.Div(id='umap-params-div', children=[
+            html.Span('Num. components: '),
+            dcc.Input(id='umap-components-input',
+                      debounce=True,
+                      inputMode='numeric',
+                      min=1,
+                      value=2)
+        ], style=dict(display='none')),
         html.Div(id='pca-params-div', children=[
             html.Span('Num. components: '),
             dcc.Input(id='pca-components-input',
@@ -179,6 +187,7 @@ def make_filter_div(name='filter', style={}):
                 value='pca',
                 options=[
                     {'label': 'tSNE', 'value': 'tsne'},
+                    {'label': 'UMAP', 'value': 'umap'},
                     {'label': 'PCA', 'value': 'pca'},
                     {'label': 'Identity', 'value': 'identity'},
                     {'label': 'Component', 'value': 'component'},

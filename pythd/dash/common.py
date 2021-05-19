@@ -22,6 +22,9 @@ def get_filter(name, metric, n_components=2, component_list=[0], eccentricity_me
     """
     if name == 'tsne':
         return ScikitLearnFilter(TSNE, n_components=n_components, metric=metric, square_distances=True)
+    elif name == 'umap':
+        import umap
+        return ScikitLearnFilter(umap.UMAP, n_components=n_components, metric=metric)
     elif name == 'pca':
         return ScikitLearnFilter(PCA, n_components=n_components)
     elif name == 'identity':
