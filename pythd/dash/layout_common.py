@@ -75,7 +75,14 @@ def make_filter_params():
                       debounce=True,
                       inputMode='numeric',
                       min=1,
-                      value=2)
+                      value=2),
+            html.Br(),
+            html.Span("Perplexity: "),
+            dcc.Input(id='tsne-perplexity-input',
+                      debounce=True,
+                      inputMode='numeric',
+                      min=2.0,
+                      value=30.0)
         ], style=dict(display='none')),
         html.Div(id='umap-params-div', children=[
             html.Span('Num. components: '),
@@ -83,7 +90,21 @@ def make_filter_params():
                       debounce=True,
                       inputMode='numeric',
                       min=1,
-                      value=2)
+                      value=2),
+            html.Br(),
+            html.Span('Num. neighbors: '),
+            dcc.Input(id='umap-neighbors-input',
+                      debounce=True,
+                      inputMode='numeric',
+                      min=2,
+                      value=15),
+            html.Br(),
+            html.Span('Min. distance: '),
+            dcc.Input(id='umap-mindist-input',
+                      debounce=True,
+                      inputMode='numeric',
+                      min=0.0,
+                      value=0.1)
         ], style=dict(display='none')),
         html.Div(id='pca-params-div', children=[
             html.Span('Num. components: '),

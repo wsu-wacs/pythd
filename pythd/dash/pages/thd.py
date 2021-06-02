@@ -346,8 +346,11 @@ def on_thd_node_select(tapNodeData, groups, fname):
                # Filter-specific parameters
                # tSNE parameters
                State('tsne-components-input', 'value'),
+               State('tsne-perplexity-input', 'value'),
                # UMAP parameters
                State('umap-components-input', 'value'),
+               State('umap-neighbors-input', 'value'),
+               State('umap-mindist-input', 'value'),
                # PCA parameters
                State('pca-components-input', 'value'),
                # Component filter parameters
@@ -359,8 +362,8 @@ def on_run_thd_click(n_clicks, fname, columns, filter_name, normalize_method,
                      num_intervals, overlap,
                      clust_method, metric,
                      contract_amount, group_threshold, precompute_value,
-                     tsne_components, 
-                     umap_components,
+                     tsne_components, tsne_perplexity,
+                     umap_components, umap_num_neighbors, umap_mindist,
                      pca_components,
                      component_list, eccentricity_method):
     """
@@ -371,16 +374,27 @@ def on_run_thd_click(n_clicks, fname, columns, filter_name, normalize_method,
         return (dash.no_update,)*8
 
     elements = []
+    filter_params = {}
 
     df = load_cached_dataframe(fname)
     sub_df = normalize_dataframe(df.loc[:, columns], normalize_method)
+    
+    # Handle filter-specific settings
     if filter_name == 'umap':
-        n_components = umap_components
-    else:
-        n_components = tsne_components if filter_name == 'tsne' else pca_components
+        n_components = int(umap_components)
+        filter_params['n_neighbors'] = int(umap_num_neighbors)
+        filter_params['min_dist'] = float(umap_mindist)
+    elif filter_name == 'tsne':
+        n_components = int(tsne_components)
+        filter_params['perplexity'] = float(tsne_perplexity)
+    elif filter_name == 'pca':
+        n_components = int(pca_components)
+    elif filter_name == 'eccentricity':
+        filter_params['method'] = eccentricity_method
+
     precompute = 'precompute' in precompute_value
 
-    filt = get_filter(filter_name, metric, int(n_components), component_list, eccentricity_method)
+    filt = get_filter(filter_name, metric, n_components, component_list, filter_params)
 
     print("Running filter... ", end='')
     start_time = time.perf_counter()

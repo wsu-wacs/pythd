@@ -1,4 +1,5 @@
 from urllib.parse import parse_qs
+from argparse import ArgumentParser
 
 import dash
 import dash_core_components as dcc
@@ -47,10 +48,14 @@ def display_page(pathname, search, hashv):
         return 'page not found: {}'.format(pathname)
 
 if __name__ == '__main__':
+    parser = ArgumentParser(description='Python THD Dashboard')
+    parser.add_argument('-d', '--debug', action='store_true', help='Run Dash in debug mode')
+    args = parser.parse_args()
+
     # Initialize uploaded data cache
     DATA_DIR.mkdir(exist_ok=True)
     for p in DATA_DIR.glob('*.pkl'):
         p.unlink()
 
-    app.run_server(debug=True)
+    app.run_server(debug=args.debug)
 

@@ -16,15 +16,16 @@ __all__ = ['get_filter', 'networkx_network_to_cytoscape_elements', 'contents_to_
            'handle_upload_options', 'make_datatable_info', 'get_comparison_groups', 'normalize_dataframe',
            'get_header']
 
-def get_filter(name, metric, n_components=2, component_list=[0], eccentricity_method='mean'):
+def get_filter(name, metric, n_components=2, component_list=[0], filter_params={}):
     """
     Get a filter object from parameters
     """
     if name == 'tsne':
-        return ScikitLearnFilter(TSNE, n_components=n_components, metric=metric, square_distances=True)
+        return ScikitLearnFilter(TSNE, n_components=n_components, metric=metric, 
+                                 square_distances=True, **filter_params)
     elif name == 'umap':
         import umap
-        return ScikitLearnFilter(umap.UMAP, n_components=n_components, metric=metric)
+        return ScikitLearnFilter(umap.UMAP, n_components=n_components, metric=metric, **filter_params)
     elif name == 'pca':
         return ScikitLearnFilter(PCA, n_components=n_components)
     elif name == 'identity':
@@ -32,7 +33,7 @@ def get_filter(name, metric, n_components=2, component_list=[0], eccentricity_me
     elif name == 'component':
         return ComponentFilter(components)
     elif name == 'eccentricity':
-        return EccentricityFilter(metric=metric, method=method)
+        return EccentricityFilter(metric=metric, **filter_params)
 
 def networkx_network_to_cytoscape_elements(network, df):
     """
