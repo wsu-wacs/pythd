@@ -15,13 +15,14 @@ The following Python packages are required to use pythd:
 - opencv-python
 
 The following packages are needed for graph export functionality:
-- igraph
+- igraph (python-igraph)
 - networkx
 
 To run the dashboard the following packages are required:
 - dash
 - dash-cytoscape
-- igraph
+- igraph (python-igraph)
+- networkx
 
 # Basic Example
 

@@ -1,7 +1,14 @@
 import unittest
 import numpy as np
+from sklearn.manifold import TSNE
 
-from pythd.filter import IdentityFilter, ComponentFilter, CombinedFilter, EccentricityFilter
+from pythd.filter import IdentityFilter, ComponentFilter, CombinedFilter, EccentricityFilter, ScikitLearnFilter
+
+try:
+    import umap
+    has_umap = True
+except:
+    has_umap = False
 
 class TestIdentityFilter(unittest.TestCase):
     def setUp(self):
@@ -70,3 +77,23 @@ class TestEccentricityFilter(unittest.TestCase):
         
         self.assertTrue((ecc >= 0).all())
         self.assertEqual(ecc.min(), 0.0)
+
+class TestScikitFilters(unittest.TestCase):
+    def setUp(self):
+        self.x = np.random.rand(50, 10)
+        
+    def test_tsne(self):
+        filt = ScikitLearnFilter(TSNE, n_components=2, init='random', learning_rate='auto')
+        f_x = filt(self.x)
+        
+        self.assertEqual(f_x.shape[0], self.x.shape[0])
+        self.assertEqual(f_x.shape[1], 2)
+    
+    @unittest.skipUnless(has_umap, "requires umap")
+    def test_umap(self):
+        import umap
+        filt = ScikitLearnFilter(umap.UMAP, n_components=2)
+        f_x = filt(self.x)
+        
+        self.assertEqual(f_x.shape[0], self.x.shape[0])
+        self.assertEqual(f_x.shape[1], 2)

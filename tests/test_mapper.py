@@ -7,6 +7,18 @@ from pythd.filter import IdentityFilter
 from pythd.cover import IntervalCover1D
 from pythd.clustering import HierarchicalClustering
 
+try:
+    import igraph
+    has_igraph = True
+except:
+    has_igraph = False
+
+try:
+    import networkx
+    has_networkx = True
+except:
+    has_networkx = False
+
 class TestMAPPER(unittest.TestCase):
     def setUp(self):
         self.x = np.random.rand(50, 1)
@@ -42,3 +54,29 @@ class TestMAPPER(unittest.TestCase):
         mapper = MAPPER(filter=self.filter, cover=self.cover, clustering=self.clustering)
         mapper_result = mapper.run(self.x)
         mapper_result.compute_k_skeleton(-1)
+    
+    @unittest.skipIf(not has_igraph, "igraph not installed")
+    def test_igraph_export(self):
+        mapper = MAPPER(filter=self.filter, cover=self.cover, clustering=self.clustering)
+        mapper_result = mapper.run(self.x)
+        one_skeleton = mapper_result.compute_1_skeleton()
+        nodes = one_skeleton.get_k_simplices(k=0, include_data=True)
+        edges = one_skeleton.get_k_simplices(k=1)
+        
+        nw = mapper_result.get_igraph_network()
+        # Check same number of edges and nodes
+        self.assertEqual(nw.vcount(), len(nodes))
+        self.assertEqual(nw.ecount(), len(edges))
+    
+    @unittest.skipIf(not has_networkx, "networkx not installed")
+    def test_networkx_export(self):
+        mapper = MAPPER(filter=self.filter, cover=self.cover, clustering=self.clustering)
+        mapper_result = mapper.run(self.x)
+        one_skeleton = mapper_result.compute_1_skeleton()
+        nodes = one_skeleton.get_k_simplices(k=0, include_data=True)
+        edges = one_skeleton.get_k_simplices(k=1)
+        
+        nw = mapper_result.get_networkx_network()
+        # Check same number of edges and nodes
+        self.assertEqual(nw.number_of_nodes(), len(nodes))
+        self.assertEqual(nw.number_of_edges(), len(edges))
