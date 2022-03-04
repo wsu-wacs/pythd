@@ -230,7 +230,7 @@ def on_thd_mapper_coloring_change(coloring, column, stylesheet, columns):
 def on_thd_upload_change(filename, contents):
     ctx = dash.callback_context
     if (not ctx.triggered) or (filename == ''):
-        return (dash.no_update,)*2
+        return (dash.no_update,)*3
 
     columns = [{'label': c, 'value': c} for c in get_header(contents)]
     display = 'Selected file: ' + str(filename)

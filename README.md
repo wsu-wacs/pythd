@@ -9,10 +9,19 @@ The following Python packages are required to use pythd:
 - numpy
 - scipy
 - matplotlib
+- numba
+- scikit-learn
+- pandas
+- opencv-python
 
 The following packages are needed for graph export functionality:
 - igraph
 - networkx
+
+To run the dashboard the following packages are required:
+- dash
+- dash-cytoscape
+- igraph
 
 # Basic Example
 

@@ -18,17 +18,20 @@ URL = 'https://git.cs.wright.edu/research/TDA/pythd'
 EMAIL = 'brown.718@wright.edu'
 AUTHOR = 'Kyle Brown'
 REQUIRES_PYTHON = '>=3.7.0'
-VERSION = '0.1'
+VERSION = '0.2'
 
 # What packages are required for this module to be executed?
 REQUIRED = [
-    'numpy', 'scipy', 'matplotlib'
+    'numpy', 'scipy', 'matplotlib', 'numba', 'scikit-learn',
+    'pandas', 'opencv-python'
 ]
 
 # What packages are optional?
 EXTRAS = {
     'igraph': ['python-igraph'],
-    'networkx': ['networkx']
+    'networkx': ['networkx'],
+    'dashboard': ['dash', 'dash-cytoscape', 'python-igraph', 'networkx'],
+    'umap': ['umap-learn']
 }
 
 # The rest you shouldn't have to touch too much :)
